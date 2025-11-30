@@ -77,8 +77,8 @@ const clerkAppearance = {
     },
   },
   layout: {
-    socialButtonsPlacement: 'bottom',
-    socialButtonsVariant: 'iconButton',
+    socialButtonsPlacement: 'bottom' as const,
+    socialButtonsVariant: 'iconButton' as const,
     termsPageUrl: '/terms',
     privacyPageUrl: '/privacy',
   },

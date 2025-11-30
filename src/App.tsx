@@ -1,5 +1,4 @@
 import { ClerkProvider } from '@clerk/clerk-react';
-import type { Appearance } from '@clerk/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './routes';
@@ -22,7 +21,7 @@ const queryClient = new QueryClient({
 });
 
 // Clerk appearance customization - HostWise branding
-const clerkAppearance: Appearance = {
+const clerkAppearance = {
   baseTheme: undefined, // Force light mode
   variables: {
     colorPrimary: '#8B3DFF', // hw-purple

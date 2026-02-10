@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
-import { mockRates, getRatesSummary, getOwnHotels, getCompetitorHotels } from '../../mocks';
+import { Button } from '../../components/ui/Button';
+import { getRatesComparison } from '../../services/api';
 import {
   DollarSign,
   TrendingUp,
@@ -10,21 +12,83 @@ import {
   ArrowDown,
   Calendar,
   Building2,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { AreaChart, DonutChart, Legend } from '@tremor/react';
+import Joyride, { type CallBackProps, STATUS } from 'react-joyride';
+import { useTour } from '../../contexts/TourContext';
+import { ratesSteps } from '../../tour/steps/rates';
+import { TourTooltip } from '../../tour/TourTooltip';
+import { tourStyles } from '../../tour/tourStyles';
 
 export function RatesPage() {
   const [selectedDays, setSelectedDays] = useState<7 | 15 | 30>(30);
+  const { isRunning, currentPage, stopTour, markTourSeen } = useTour();
 
-  const ownHotels = getOwnHotels();
-  const competitorHotels = getCompetitorHotels();
-  const summary = getRatesSummary();
-  const rates = mockRates.slice(0, selectedDays);
+  const handleTourCallback = useCallback((data: CallBackProps) => {
+    const { status } = data;
+    if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+      stopTour();
+      markTourSeen('rates');
+    }
+  }, [stopTour, markTourSeen]);
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['rates', selectedDays],
+    queryFn: () => getRatesComparison(selectedDays),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 text-hw-purple animate-spin" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center py-12">
+        <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+        <h2 className="text-lg font-semibold text-hw-navy-900">Erro ao carregar tarifas</h2>
+        <p className="text-hw-navy-500 mt-1">Tente novamente mais tarde.</p>
+        <Button variant="secondary" onClick={() => refetch()} className="mt-4">
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
+
+  const summary = data?.summary || { avgMyHotel: 0, avgCompetitors: 0, avgDiff: 0, cheaper: 0, expensive: 0, average: 0, total: 0 };
+  const rates = data?.rates || [];
+  const hotels = data?.hotels || [];
+
+  const ownHotel = hotels.find((h) => h.isOwn);
+  const competitorHotels = hotels.filter((h) => !h.isOwn);
 
   // Check if user has hotels
-  if (ownHotels.length === 0) {
+  if (!ownHotel) {
     return <EmptyState />;
+  }
+
+  if (rates.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-hw-navy-900">Espiao de Tarifas</h1>
+          <p className="text-hw-navy-500 mt-1">Compare seus precos com a concorrencia</p>
+        </div>
+        <Card>
+          <CardContent className="text-center py-12">
+            <DollarSign className="w-12 h-12 text-hw-navy-300 mx-auto mb-3" />
+            <h2 className="text-lg font-semibold text-hw-navy-900">Dados ainda sendo coletados</h2>
+            <p className="text-hw-navy-500 mt-1">Os dados de tarifas estarao disponiveis apos a primeira coleta do Booking.com.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   // Chart data
@@ -43,8 +107,22 @@ export function RatesPage() {
 
   return (
     <div className="space-y-6">
+      <Joyride
+        steps={ratesSteps}
+        run={isRunning && currentPage === 'rates'}
+        continuous
+        showSkipButton
+        scrollToFirstStep
+        scrollOffset={80}
+        spotlightClicks
+        disableOverlayClose
+        tooltipComponent={TourTooltip}
+        styles={tourStyles}
+        callback={handleTourCallback}
+      />
+
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div data-tour="rates-header" className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-hw-navy-900">Espiao de Tarifas</h1>
           <p className="text-hw-navy-500 mt-1">
@@ -53,7 +131,7 @@ export function RatesPage() {
         </div>
 
         {/* Period Selector */}
-        <div className="flex bg-hw-navy-100 rounded-lg p-1">
+        <div data-tour="rates-period-selector" className="flex bg-hw-navy-100 rounded-lg p-1">
           {[7, 15, 30].map((days) => (
             <button
               key={days}
@@ -72,7 +150,7 @@ export function RatesPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-tour="rates-summary" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard
           title="Minha Tarifa Media"
           value={`R$ ${summary.avgMyHotel}`}
@@ -97,14 +175,15 @@ export function RatesPage() {
           value={`${summary.cheaper}/${summary.total}`}
           icon={TrendingDown}
           color="green"
-          subtitle={`${Math.round((summary.cheaper / summary.total) * 100)}% dos dias`}
+          subtitle={summary.total > 0 ? `${Math.round((summary.cheaper / summary.total) * 100)}% dos dias` : undefined}
         />
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Price Evolution Chart */}
-        <Card className="lg:col-span-2">
+        <div data-tour="rates-evolution-chart" className="lg:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle>Evolucao de Precos</CardTitle>
             <CardDescription>Comparativo dos ultimos {selectedDays} dias</CardDescription>
@@ -122,8 +201,10 @@ export function RatesPage() {
             />
           </CardContent>
         </Card>
+        </div>
 
         {/* Position Distribution */}
+        <div data-tour="rates-position-chart">
         <Card>
           <CardHeader>
             <CardTitle>Posicionamento</CardTitle>
@@ -145,69 +226,79 @@ export function RatesPage() {
             />
           </CardContent>
         </Card>
+        </div>
       </div>
 
       {/* Competitor Prices Today */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Precos de Hoje</CardTitle>
-          <CardDescription>Comparativo de tarifas para hoje</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* My Hotel */}
-            <div className="flex items-center justify-between p-4 bg-hw-purple-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-hw-purple rounded-lg flex items-center justify-center">
-                  <Building2 className="w-5 h-5 text-white" />
+      {rates.length > 0 && (
+        <div data-tour="rates-today-prices">
+        <Card>
+          <CardHeader>
+            <CardTitle>Precos de Hoje</CardTitle>
+            <CardDescription>Comparativo de tarifas para hoje</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* My Hotel */}
+              <div className="flex items-center justify-between p-4 bg-hw-purple-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-hw-purple rounded-lg flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-hw-navy-900">{ownHotel?.name}</p>
+                    <p className="text-sm text-hw-navy-500">Meu Hotel</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-hw-navy-900">{ownHotels[0]?.name}</p>
-                  <p className="text-sm text-hw-navy-500">Meu Hotel</p>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-hw-purple">
+                    {rates[0]?.myHotel ? `R$ ${rates[0].myHotel}` : '--'}
+                  </p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-hw-purple">R$ {rates[0]?.myHotel}</p>
-              </div>
+
+              {/* Competitors */}
+              {rates[0]?.competitors.map((comp) => {
+                const diff = rates[0].myHotel && comp.price
+                  ? Math.round(((rates[0].myHotel - comp.price) / comp.price) * 100)
+                  : null;
+
+                return (
+                  <div key={comp.hotelId} className="flex items-center justify-between p-4 bg-hw-navy-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-hw-navy-200 rounded-lg flex items-center justify-center">
+                        <Building2 className="w-5 h-5 text-hw-navy-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-hw-navy-900">{comp.hotelName}</p>
+                        <p className="text-sm text-hw-navy-500">Concorrente</p>
+                      </div>
+                    </div>
+                    <div className="text-right flex items-center gap-4">
+                      <p className="text-xl font-bold text-hw-navy-900">
+                        {comp.price ? `R$ ${comp.price}` : '--'}
+                      </p>
+                      {diff !== null && (
+                        <span className={cn(
+                          'flex items-center gap-1 text-sm font-medium px-2 py-1 rounded',
+                          diff < 0 ? 'bg-green-100 text-green-700' : diff > 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                        )}>
+                          {diff < 0 ? <ArrowDown className="w-3 h-3" /> : diff > 0 ? <ArrowUp className="w-3 h-3" /> : null}
+                          {diff > 0 ? '+' : ''}{diff}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-
-            {/* Competitors */}
-            {rates[0]?.competitors.map((comp) => {
-              const diff = rates[0].myHotel && comp.price
-                ? Math.round(((rates[0].myHotel - comp.price) / comp.price) * 100)
-                : null;
-
-              return (
-                <div key={comp.hotelId} className="flex items-center justify-between p-4 bg-hw-navy-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-hw-navy-200 rounded-lg flex items-center justify-center">
-                      <Building2 className="w-5 h-5 text-hw-navy-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-hw-navy-900">{comp.hotelName}</p>
-                      <p className="text-sm text-hw-navy-500">Concorrente</p>
-                    </div>
-                  </div>
-                  <div className="text-right flex items-center gap-4">
-                    <p className="text-xl font-bold text-hw-navy-900">R$ {comp.price}</p>
-                    {diff !== null && (
-                      <span className={cn(
-                        'flex items-center gap-1 text-sm font-medium px-2 py-1 rounded',
-                        diff < 0 ? 'bg-green-100 text-green-700' : diff > 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
-                      )}>
-                        {diff < 0 ? <ArrowDown className="w-3 h-3" /> : diff > 0 ? <ArrowUp className="w-3 h-3" /> : null}
-                        {diff > 0 ? '+' : ''}{diff}%
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        </div>
+      )}
 
       {/* Rates Table */}
+      <div data-tour="rates-table">
       <Card>
         <CardHeader>
           <CardTitle>Tabela de Tarifas</CardTitle>
@@ -241,11 +332,11 @@ export function RatesPage() {
                       </div>
                     </td>
                     <td className="py-3 px-4 text-right font-semibold text-hw-purple">
-                      R$ {rate.myHotel}
+                      {rate.myHotel ? `R$ ${rate.myHotel}` : '--'}
                     </td>
                     {rate.competitors.slice(0, 3).map(comp => (
                       <td key={comp.hotelId} className="py-3 px-4 text-right text-hw-navy-700">
-                        R$ {comp.price}
+                        {comp.price ? `R$ ${comp.price}` : '--'}
                       </td>
                     ))}
                     <td className="py-3 px-4 text-right">
@@ -258,6 +349,7 @@ export function RatesPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
@@ -337,11 +429,11 @@ function EmptyState() {
 
 // Helper functions
 function formatDateShort(dateStr: string) {
-  const date = new Date(dateStr);
+  const date = new Date(dateStr + 'T00:00:00');
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
 function formatDateFull(dateStr: string) {
-  const date = new Date(dateStr);
+  const date = new Date(dateStr + 'T00:00:00');
   return date.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
 }

@@ -1,6 +1,9 @@
+import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
-import { mockOccupancy, getOccupancySummary, getWeeklyOccupancy, getOwnHotels } from '../../mocks';
-import type { MockOccupancy } from '../../mocks';
+import { Button } from '../../components/ui/Button';
+import { getOccupancy } from '../../services/api';
+import type { OccupancyDay } from '../../services/api';
 import {
   TrendingUp,
   TrendingDown,
@@ -8,38 +11,102 @@ import {
   Percent,
   Sun,
   Star,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { AreaChart, BarChart } from '@tremor/react';
+import Joyride, { type CallBackProps, STATUS } from 'react-joyride';
+import { useTour } from '../../contexts/TourContext';
+import { occupancySteps } from '../../tour/steps/occupancy';
+import { TourTooltip } from '../../tour/TourTooltip';
+import { tourStyles } from '../../tour/tourStyles';
 
 export function OccupancyPage() {
-  const ownHotels = getOwnHotels();
-  const summary = getOccupancySummary();
-  const weeklyData = getWeeklyOccupancy();
+  const { isRunning, currentPage, stopTour, markTourSeen } = useTour();
 
-  // Check if user has hotels
-  if (ownHotels.length === 0) {
+  const handleTourCallback = useCallback((data: CallBackProps) => {
+    const { status } = data;
+    if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+      stopTour();
+      markTourSeen('occupancy');
+    }
+  }, [stopTour, markTourSeen]);
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['occupancy'],
+    queryFn: () => getOccupancy(30),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 text-hw-purple animate-spin" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center py-12">
+        <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+        <h2 className="text-lg font-semibold text-hw-navy-900">Erro ao carregar ocupacao</h2>
+        <p className="text-hw-navy-500 mt-1">Tente novamente mais tarde.</p>
+        <Button variant="secondary" onClick={() => refetch()} className="mt-4">
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
+
+  const occupancy = data?.occupancy || [];
+  const summary = data?.summary || {
+    avgMyHotel: 0,
+    avgCompetitor: 0,
+    diff: 0,
+    avgWeekend: 0,
+    avgWeekday: 0,
+    highest: { date: '', occupancy: 0 },
+    lowest: { date: '', occupancy: 100 },
+  };
+  const weeklyData = data?.weekly || [];
+
+  if (occupancy.length === 0) {
     return <EmptyState />;
   }
 
   // Chart data
-  const chartData = mockOccupancy.map(o => ({
+  const chartData = occupancy.map(o => ({
     date: formatDateShort(o.date),
-    'Meu Hotel': o.myHotel,
-    'Media Concorrentes': o.avgCompetitor,
+    'Meu Hotel': o.occupancy,
+    'Media Concorrentes': o.competitorOccupancy,
   }));
 
   // Weekly comparison data
-  const weeklyChartData = weeklyData.map((w, i) => ({
-    name: `Semana ${i + 1}`,
+  const weeklyChartData = weeklyData.map(w => ({
+    name: w.week,
     'Meu Hotel': w.myHotel,
-    'Concorrentes': w.competitor,
+    'Concorrentes': w.competitors,
   }));
 
   return (
     <div className="space-y-6">
+      <Joyride
+        steps={occupancySteps}
+        run={isRunning && currentPage === 'occupancy'}
+        continuous
+        showSkipButton
+        scrollToFirstStep
+        scrollOffset={80}
+        spotlightClicks
+        disableOverlayClose
+        tooltipComponent={TourTooltip}
+        styles={tourStyles}
+        callback={handleTourCallback}
+      />
+
       {/* Header */}
-      <div>
+      <div data-tour="occupancy-header">
         <h1 className="text-2xl font-bold text-hw-navy-900">Sensor de Lotacao</h1>
         <p className="text-hw-navy-500 mt-1">
           Acompanhe a ocupacao estimada do seu hotel e concorrentes
@@ -47,7 +114,7 @@ export function OccupancyPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-tour="occupancy-summary" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="flex items-center gap-4">
             <div className="w-12 h-12 bg-hw-purple-100 rounded-lg flex items-center justify-center">
@@ -107,6 +174,7 @@ export function OccupancyPage() {
       </div>
 
       {/* Occupancy Chart */}
+      <div data-tour="occupancy-evolution-chart">
       <Card>
         <CardHeader>
           <CardTitle>Evolucao da Ocupacao</CardTitle>
@@ -125,10 +193,12 @@ export function OccupancyPage() {
           />
         </CardContent>
       </Card>
+      </div>
 
       {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Weekly Comparison */}
+        <div data-tour="occupancy-weekly-chart">
         <Card>
           <CardHeader>
             <CardTitle>Comparativo Semanal</CardTitle>
@@ -146,8 +216,10 @@ export function OccupancyPage() {
             />
           </CardContent>
         </Card>
+        </div>
 
         {/* Highlights */}
+        <div data-tour="occupancy-highlights">
         <Card>
           <CardHeader>
             <CardTitle>Destaques</CardTitle>
@@ -162,7 +234,7 @@ export function OccupancyPage() {
               </div>
               <p className="text-2xl font-bold text-green-700">{summary.highest.occupancy}%</p>
               <p className="text-sm text-green-600">
-                {formatDateFull(summary.highest.date)}
+                {summary.highest.date ? formatDateFull(summary.highest.date) : '--'}
               </p>
             </div>
 
@@ -174,7 +246,7 @@ export function OccupancyPage() {
               </div>
               <p className="text-2xl font-bold text-red-700">{summary.lowest.occupancy}%</p>
               <p className="text-sm text-red-600">
-                {formatDateFull(summary.lowest.date)}
+                {summary.lowest.date ? formatDateFull(summary.lowest.date) : '--'}
               </p>
             </div>
 
@@ -192,9 +264,11 @@ export function OccupancyPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
 
       {/* Calendar View */}
+      <div data-tour="occupancy-calendar">
       <Card>
         <CardHeader>
           <CardTitle>Calendario de Ocupacao</CardTitle>
@@ -210,8 +284,8 @@ export function OccupancyPage() {
             ))}
 
             {/* Calendar days */}
-            {mockOccupancy.map((day, index) => {
-              const date = new Date(day.date);
+            {occupancy.map((day, index) => {
+              const date = new Date(day.date + 'T00:00:00');
               const dayOfMonth = date.getDate();
 
               // Add empty cells for first week alignment
@@ -236,12 +310,13 @@ export function OccupancyPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
 
 // Calendar Day Component
-function CalendarDay({ day, dayOfMonth }: { day: MockOccupancy; dayOfMonth: number }) {
+function CalendarDay({ day, dayOfMonth }: { day: OccupancyDay; dayOfMonth: number }) {
   const getOccupancyColor = (occupancy: number) => {
     if (occupancy >= 80) return 'bg-green-500';
     if (occupancy >= 60) return 'bg-green-300';
@@ -259,9 +334,9 @@ function CalendarDay({ day, dayOfMonth }: { day: MockOccupancy; dayOfMonth: numb
       <span className="text-xs text-hw-navy-500">{dayOfMonth}</span>
       <div className={cn(
         'w-8 h-5 rounded text-xs font-semibold text-white flex items-center justify-center mt-1',
-        getOccupancyColor(day.myHotel)
+        getOccupancyColor(day.occupancy)
       )}>
-        {day.myHotel}%
+        {day.occupancy}%
       </div>
       {day.isHoliday && (
         <span className="text-[10px] text-hw-purple font-medium truncate w-full mt-0.5">
@@ -292,11 +367,11 @@ function EmptyState() {
 
 // Helper functions
 function formatDateShort(dateStr: string) {
-  const date = new Date(dateStr);
+  const date = new Date(dateStr + 'T00:00:00');
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
 function formatDateFull(dateStr: string) {
-  const date = new Date(dateStr);
+  const date = new Date(dateStr + 'T00:00:00');
   return date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 }

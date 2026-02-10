@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useUser, useClerk } from '@clerk/clerk-react';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/utils';
 import { getMe } from '../../services/api';
 import {
@@ -11,7 +11,6 @@ import {
   Building2,
   CreditCard,
   LogOut,
-  User,
 } from 'lucide-react';
 
 const mainMenuItems = [
@@ -30,8 +29,7 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation();
-  const { user: clerkUser } = useUser();
-  const { signOut } = useClerk();
+  const { user: authUser, logout } = useAuth();
 
   const { data: user } = useQuery({
     queryKey: ['me'],
@@ -39,7 +37,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   });
 
   const handleLogout = () => {
-    signOut();
+    logout();
   };
 
   const getPlanLabel = (plan?: string) => {
@@ -60,12 +58,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     }
   };
 
+  const userName = authUser?.name || 'Usuario';
+  const initial = userName.charAt(0).toUpperCase();
+
   return (
     <>
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white border-r border-hw-navy-100">
         <SidebarContent
-          clerkUser={clerkUser}
+          userName={userName}
+          initial={initial}
           user={user}
           location={location}
           getPlanLabel={getPlanLabel}
@@ -82,7 +84,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
       >
         <SidebarContent
-          clerkUser={clerkUser}
+          userName={userName}
+          initial={initial}
           user={user}
           location={location}
           getPlanLabel={getPlanLabel}
@@ -96,7 +99,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 }
 
 interface SidebarContentProps {
-  clerkUser: ReturnType<typeof useUser>['user'];
+  userName: string;
+  initial: string;
   user: { plan?: string; limits?: { maxCompetitors: number; maxProperties: number } } | undefined;
   location: ReturnType<typeof useLocation>;
   getPlanLabel: (plan?: string) => string;
@@ -106,7 +110,8 @@ interface SidebarContentProps {
 }
 
 function SidebarContent({
-  clerkUser,
+  userName,
+  initial,
   user,
   location,
   getPlanLabel,
@@ -174,19 +179,11 @@ function SidebarContent({
         {/* User Info */}
         <div className="flex items-center gap-3 px-3 py-2">
           <div className="w-9 h-9 bg-hw-purple-100 rounded-full flex items-center justify-center">
-            {clerkUser?.imageUrl ? (
-              <img
-                src={clerkUser.imageUrl}
-                alt={clerkUser.firstName || 'User'}
-                className="w-9 h-9 rounded-full"
-              />
-            ) : (
-              <User className="w-5 h-5 text-hw-purple" />
-            )}
+            <span className="text-sm font-semibold text-hw-purple">{initial}</span>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-hw-navy-900 truncate">
-              {clerkUser?.firstName || 'Usuario'}
+              {userName}
             </p>
             <span className={cn('text-xs px-2 py-0.5 rounded-full', getPlanColor(user?.plan))}>
               {getPlanLabel(user?.plan)}

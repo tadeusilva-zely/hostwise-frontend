@@ -122,13 +122,8 @@ function SidebarContent({
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-hw-navy-100">
-        <div className="w-10 h-10 bg-hw-gradient-dark rounded-lg flex items-center justify-center">
-          <Building2 className="w-6 h-6 text-white" />
-        </div>
-        <span className="text-xl font-bold bg-gradient-to-r from-hw-purple to-hw-purple-600 bg-clip-text text-transparent">
-          HostWise
-        </span>
+      <div className="flex items-center justify-center px-6 py-5 border-b border-hw-navy-100">
+        <img src="/logo.png" alt="HostWise" className="h-10 w-auto rounded-lg" />
       </div>
 
       {/* Main Navigation */}

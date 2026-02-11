@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { ExternalLink, CreditCard, Calendar } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { getMe, createPortalSession } from '../../services/api';
+import { getMe, createPortalSession, getHotels } from '../../services/api';
 import { formatDate } from '../../lib/utils';
 import { Link } from 'react-router-dom';
 
@@ -10,6 +10,11 @@ export function ManageSubscription() {
   const { data: user, isLoading } = useQuery({
     queryKey: ['me'],
     queryFn: getMe,
+  });
+
+  const { data: hotelsData } = useQuery({
+    queryKey: ['hotels'],
+    queryFn: getHotels,
   });
 
   const portalMutation = useMutation({
@@ -31,6 +36,14 @@ export function ManageSubscription() {
 
   const planName = user?.plan === 'STARTER' ? 'Starter' : user?.plan === 'INSIGHT' ? 'Insight' : 'Pro';
   const isFreePlan = user?.plan === 'STARTER';
+
+  const ownHotelsCount = hotelsData?.ownHotels?.length || 0;
+  const competitorsCount = hotelsData?.competitorHotels?.length || 0;
+  const maxOwnHotels = user?.limits.maxProperties || 0;
+  const maxCompetitors = user?.limits.maxCompetitors || 0;
+
+  const ownHotelsPercent = maxOwnHotels > 0 ? Math.round((ownHotelsCount / maxOwnHotels) * 100) : 0;
+  const competitorsPercent = maxCompetitors > 0 ? Math.round((competitorsCount / maxCompetitors) * 100) : 0;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -126,13 +139,13 @@ export function ManageSubscription() {
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-hw-navy-600">Concorrentes</span>
                 <span className="font-medium text-hw-navy-900">
-                  0 / {user?.limits.maxCompetitors}
+                  {competitorsCount} / {maxCompetitors}
                 </span>
               </div>
               <div className="h-2 bg-hw-navy-100 rounded-full">
                 <div
                   className="h-2 bg-hw-purple rounded-full"
-                  style={{ width: '0%' }}
+                  style={{ width: `${competitorsPercent}%` }}
                 />
               </div>
             </div>
@@ -141,13 +154,13 @@ export function ManageSubscription() {
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-hw-navy-600">Propriedades</span>
                 <span className="font-medium text-hw-navy-900">
-                  0 / {user?.limits.maxProperties}
+                  {ownHotelsCount} / {maxOwnHotels}
                 </span>
               </div>
               <div className="h-2 bg-hw-navy-100 rounded-full">
                 <div
                   className="h-2 bg-hw-green rounded-full"
-                  style={{ width: '0%' }}
+                  style={{ width: `${ownHotelsPercent}%` }}
                 />
               </div>
             </div>

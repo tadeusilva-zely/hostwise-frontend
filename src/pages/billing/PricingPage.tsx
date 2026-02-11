@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Check } from 'lucide-react';
+import { Check, Settings } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { getPrices, createCheckoutSession, getMe } from '../../services/api';
@@ -42,6 +43,7 @@ export function PricingPage() {
   }
 
   const prices = pricesData?.prices || [];
+  const hasPaidPlan = user?.plan !== 'STARTER';
 
   // Add Starter plan info
   const allPlans = [
@@ -72,6 +74,16 @@ export function PricingPage() {
         <p className="text-hw-navy-600 max-w-2xl mx-auto">
           Monitore a concorrência e otimize suas tarifas com inteligência de mercado.
         </p>
+        {hasPaidPlan && (
+          <div className="mt-4">
+            <Link to="/billing/manage">
+              <Button variant="secondary" size="sm">
+                <Settings className="w-4 h-4 mr-2" />
+                Gerenciar assinatura
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">

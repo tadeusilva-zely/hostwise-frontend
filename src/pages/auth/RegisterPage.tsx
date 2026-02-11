@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserPlus, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { isValidCnpj } from '../../utils/cnpj';
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -55,6 +56,11 @@ export function RegisterPage() {
 
     if (form.password !== form.confirmPassword) {
       setError('As senhas nao coincidem.');
+      return;
+    }
+
+    if (form.cnpj && !isValidCnpj(form.cnpj)) {
+      setError('CNPJ inválido. Verifique os números digitados.');
       return;
     }
 

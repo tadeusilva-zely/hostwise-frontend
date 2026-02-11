@@ -6,7 +6,6 @@ interface AuthUser {
   id: string;
   email: string;
   name: string;
-  cnpj: string | null;
   phone: string | null;
   role: 'OWNER' | 'MEMBER';
   plan: 'STARTER' | 'INSIGHT' | 'PRO';

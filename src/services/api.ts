@@ -26,11 +26,18 @@ export interface TourPreferences {
 }
 
 // API types
+export interface Organization {
+  id: string;
+  name: string;
+  cnpj: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface User {
   id: string;
   email: string;
   name: string | null;
-  cnpj: string | null;
   phone: string | null;
   role: 'OWNER' | 'MEMBER';
   plan: 'STARTER' | 'INSIGHT' | 'PRO';

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { api, setAuthToken } from '../services/api';
+import { queryClient } from '../lib/queryClient';
 
 interface AuthUser {
   id: string;
@@ -100,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthToken(null);
     setToken(null);
     setUser(null);
+    queryClient.clear();
   }, []);
 
   const refreshUser = useCallback(async () => {

@@ -27,6 +27,8 @@ interface TourContextType {
 const TourContext = createContext<TourContextType | null>(null);
 
 const STORAGE_KEY = 'hw_tours_seen';
+const COOLDOWN_STORAGE_KEY = 'hw_tour_cooldown';
+const COOLDOWN_HOURS = 24;
 
 export const pathToPage: Record<string, TourPage> = {
   '/dashboard': 'dashboard',
@@ -39,6 +41,28 @@ const DEFAULT_PREFERENCES: TourPreferencesState = {
   seen: { dashboard: false, rates: false, reviews: false, occupancy: false },
   dismissCount: { dashboard: 0, rates: 0, reviews: 0, occupancy: 0 },
 };
+
+function getCooldownExpiry(page: TourPage): Date | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(COOLDOWN_STORAGE_KEY) || '{}');
+    const expiry = raw[page];
+    return expiry ? new Date(expiry) : null;
+  } catch {
+    return null;
+  }
+}
+
+function setCooldownExpiry(page: TourPage): void {
+  try {
+    const raw = JSON.parse(localStorage.getItem(COOLDOWN_STORAGE_KEY) || '{}');
+    const expiry = new Date();
+    expiry.setHours(expiry.getHours() + COOLDOWN_HOURS);
+    raw[page] = expiry.toISOString();
+    localStorage.setItem(COOLDOWN_STORAGE_KEY, JSON.stringify(raw));
+  } catch {
+    // Silently fail if localStorage is unavailable
+  }
+}
 
 function parsePreferences(raw: { seen: Record<string, boolean>; dismissCount: Record<string, number> } | null): TourPreferencesState {
   if (!raw) return { ...DEFAULT_PREFERENCES, seen: { ...DEFAULT_PREFERENCES.seen }, dismissCount: { ...DEFAULT_PREFERENCES.dismissCount } };
@@ -122,6 +146,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const dismissTour = useCallback((page: TourPage) => {
+    setCooldownExpiry(page);
     setPreferences(prev => {
       const newCount = (prev.dismissCount[page] || 0) + 1;
       const updated = {
@@ -134,7 +159,11 @@ export function TourProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const shouldOfferTour = useCallback((page: TourPage) => {
-    return !preferences.seen[page] && (preferences.dismissCount[page] || 0) < 3;
+    if (preferences.seen[page]) return false;
+    if ((preferences.dismissCount[page] || 0) >= 3) return false;
+    const cooldownExpiry = getCooldownExpiry(page);
+    if (cooldownExpiry && new Date() < cooldownExpiry) return false;
+    return true;
   }, [preferences]);
 
   const hasPendingTours = TOUR_PAGES.some(

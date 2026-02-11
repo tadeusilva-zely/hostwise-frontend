@@ -50,4 +50,10 @@ export const dashboardSteps: Step[] = [
     content: 'Acesse rapidamente as principais funcionalidades: gerenciar hoteis, analisar tarifas ou ver avaliacoes. Cada secao tem seu proprio tour guiado!',
     placement: 'top',
   },
+  {
+    target: '[data-tour="chat-bubble"]',
+    title: 'Chat com IA',
+    content: 'Tem alguma duvida? Clique aqui para conversar com a IA do HostWise. Ela pode ajudar com analises de tarifas, avaliacoes, sugestoes de precificacao e muito mais!',
+    placement: 'top-end',
+  },
 ];

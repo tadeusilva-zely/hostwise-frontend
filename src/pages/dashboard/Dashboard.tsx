@@ -166,25 +166,71 @@ export function Dashboard() {
 
       {/* No Hotels State */}
       {!hasHotels ? (
-        <Card>
-          <CardContent className="text-center py-12">
-            <div className="w-20 h-20 bg-hw-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Building2 className="w-10 h-10 text-hw-purple" />
-            </div>
-            <h2 className="text-xl font-semibold text-hw-navy-900 mb-2">
-              Cadastre seu primeiro hotel
-            </h2>
-            <p className="text-hw-navy-600 mb-6 max-w-md mx-auto">
-              Adicione seu hotel e seus concorrentes para comecar a monitorar tarifas, avaliacoes e ocupacao.
-            </p>
-            <Link to="/hotels">
-              <Button variant="primary">
-                <Building2 className="w-4 h-4 mr-2" />
-                Adicionar Meu Hotel
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          {/* Hero Section */}
+          <Card className="bg-gradient-to-br from-hw-purple-50 via-white to-indigo-50 border-2 border-hw-purple-100 overflow-hidden">
+            <CardContent className="text-center py-16 px-6 relative">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-hw-purple-100 rounded-full opacity-30 -translate-y-1/2 translate-x-1/2" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-100 rounded-full opacity-30 translate-y-1/2 -translate-x-1/2" />
+
+              <div className="relative">
+                <div className="w-20 h-20 bg-gradient-to-br from-hw-purple to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <Building2 className="w-10 h-10 text-white" />
+                </div>
+                <h2 className="text-2xl lg:text-3xl font-bold text-hw-navy-900 mb-3">
+                  Bem-vindo ao HostWise!
+                </h2>
+                <p className="text-hw-navy-600 mb-8 max-w-lg mx-auto text-base lg:text-lg">
+                  Comece cadastrando seu hotel para desbloquear o monitoramento inteligente de tarifas, avaliacoes e ocupacao.
+                </p>
+                <Link to="/hotels">
+                  <Button variant="primary" size="lg" className="shadow-lg">
+                    <Building2 className="w-5 h-5 mr-2" />
+                    Cadastrar Meu Hotel
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Feature Highlights */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="text-center">
+              <CardContent className="py-6">
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <DollarSign className="w-6 h-6 text-green-600" />
+                </div>
+                <h3 className="font-semibold text-hw-navy-900 mb-1">Espiao de Tarifas</h3>
+                <p className="text-sm text-hw-navy-500">
+                  Compare seus precos com a concorrencia em tempo real.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="text-center">
+              <CardContent className="py-6">
+                <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Star className="w-6 h-6 text-yellow-600" />
+                </div>
+                <h3 className="font-semibold text-hw-navy-900 mb-1">Avaliacoes</h3>
+                <p className="text-sm text-hw-navy-500">
+                  Monitore e analise o que os hospedes estao dizendo.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="text-center">
+              <CardContent className="py-6">
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Percent className="w-6 h-6 text-blue-600" />
+                </div>
+                <h3 className="font-semibold text-hw-navy-900 mb-1">Ocupacao</h3>
+                <p className="text-sm text-hw-navy-500">
+                  Acompanhe sua taxa de ocupacao e identifique oportunidades.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       ) : (
         <>
           {/* Stats Overview */}

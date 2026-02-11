@@ -44,6 +44,7 @@ export interface User {
     horizonDays: number;
     hasHistory: boolean;
     hasAlerts: boolean;
+    aiMessagesPerMonth: number;
   };
   tourPreferences: TourPreferences | null;
   createdAt: string;
@@ -416,5 +417,82 @@ export interface DashboardSummary {
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   const response = await api.get<DashboardSummary>('/dashboard/summary');
+  return response.data;
+}
+
+// ============================================
+// AI CHAT
+// ============================================
+
+export interface ChatMessageData {
+  id: string;
+  role: 'USER' | 'ASSISTANT';
+  content: string;
+  createdAt: string;
+}
+
+export interface ChatConversationData {
+  id: string;
+  title: string | null;
+  updatedAt: string;
+  lastMessage: string | null;
+}
+
+export interface ChatUsageData {
+  used: number;
+  limit: number;
+  bonusCredits: number;
+  totalAvailable: number;
+  periodEnd: string;
+}
+
+export interface ChatSendResponse {
+  conversationId: string;
+  message: ChatMessageData;
+  usage: ChatUsageData;
+}
+
+export interface CreditPack {
+  index: number;
+  credits: number;
+  priceInCents: number;
+  label: string;
+  available: boolean;
+}
+
+export async function sendChatMessage(data: {
+  conversationId?: string;
+  message: string;
+}): Promise<ChatSendResponse> {
+  const response = await api.post<ChatSendResponse>('/chat/message', data);
+  return response.data;
+}
+
+export async function getChatConversations(): Promise<{ conversations: ChatConversationData[] }> {
+  const response = await api.get<{ conversations: ChatConversationData[] }>('/chat/conversations');
+  return response.data;
+}
+
+export async function getConversationMessages(conversationId: string): Promise<{ messages: ChatMessageData[] }> {
+  const response = await api.get<{ messages: ChatMessageData[] }>(`/chat/conversations/${conversationId}/messages`);
+  return response.data;
+}
+
+export async function deleteChatConversation(conversationId: string): Promise<void> {
+  await api.delete(`/chat/conversations/${conversationId}`);
+}
+
+export async function getChatUsage(): Promise<ChatUsageData> {
+  const response = await api.get<ChatUsageData>('/chat/usage');
+  return response.data;
+}
+
+export async function getCreditPacks(): Promise<{ packs: CreditPack[] }> {
+  const response = await api.get<{ packs: CreditPack[] }>('/chat/credits/packs');
+  return response.data;
+}
+
+export async function purchaseCredits(packIndex: number): Promise<{ url: string }> {
+  const response = await api.post<{ url: string }>('/chat/credits/checkout', { packIndex });
   return response.data;
 }

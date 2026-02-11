@@ -33,7 +33,7 @@ export function TourOfferPopup() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[10001] animate-[slideUp_0.3s_ease-out]">
+    <div className="fixed bottom-6 left-4 lg:left-6 z-[10001] animate-[slideUp_0.3s_ease-out]">
       <div className="bg-white rounded-xl shadow-lg border border-hw-navy-100 w-80 overflow-hidden">
         {/* Purple accent bar */}
         <div className="h-1 bg-hw-purple" />

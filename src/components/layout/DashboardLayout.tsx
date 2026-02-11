@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { TourProvider } from '../../contexts/TourContext';
 import { TourOfferPopup } from '../../tour/TourOfferPopup';
+import { ChatBubble } from '../chat/ChatBubble';
 
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -34,6 +35,7 @@ export function DashboardLayout() {
         </div>
       </div>
       <TourOfferPopup />
+      <ChatBubble />
     </TourProvider>
   );
 }

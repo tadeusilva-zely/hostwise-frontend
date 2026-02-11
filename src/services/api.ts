@@ -30,6 +30,9 @@ export interface Organization {
   id: string;
   name: string;
   cnpj: string | null;
+  plan: 'STARTER' | 'INSIGHT' | 'PRO';
+  trialEndsAt: string | null;
+  stripeCustomerId: string | null;
   createdAt: string;
   updatedAt: string;
 }

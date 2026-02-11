@@ -282,9 +282,9 @@ export interface RatesResponse {
   hotels: { id: string; name: string; isOwn: boolean }[];
 }
 
-export async function getRatesComparison(days: number): Promise<RatesResponse> {
+export async function getRatesComparison(days: number, hotelId?: string): Promise<RatesResponse> {
   const response = await api.get<RatesResponse>('/rates/comparison', {
-    params: { days },
+    params: { days, ...(hotelId ? { hotelId } : {}) },
   });
   return response.data;
 }
@@ -314,6 +314,7 @@ export interface ReviewsSummary {
   positive: number;
   neutral: number;
   negative: number;
+  myAvgRating: number;
   competitorAvgRating: number;
   diff: number;
 }
@@ -333,8 +334,10 @@ export async function getReviews(params: {
   return response.data;
 }
 
-export async function getReviewsSummary(): Promise<ReviewsSummary> {
-  const response = await api.get<ReviewsSummary>('/reviews/summary');
+export async function getReviewsSummary(hotelId?: string): Promise<ReviewsSummary> {
+  const response = await api.get<ReviewsSummary>('/reviews/summary', {
+    params: hotelId ? { hotelId } : undefined,
+  });
   return response.data;
 }
 
@@ -392,9 +395,9 @@ export interface OccupancyResponse {
   weekly: WeeklyOccupancy[];
 }
 
-export async function getOccupancy(days?: number): Promise<OccupancyResponse> {
+export async function getOccupancy(days?: number, hotelId?: string): Promise<OccupancyResponse> {
   const response = await api.get<OccupancyResponse>('/calendar/occupancy', {
-    params: { days },
+    params: { days, ...(hotelId ? { hotelId } : {}) },
   });
   return response.data;
 }
@@ -415,8 +418,10 @@ export interface DashboardSummary {
   occupancy: OccupancySummary;
 }
 
-export async function getDashboardSummary(): Promise<DashboardSummary> {
-  const response = await api.get<DashboardSummary>('/dashboard/summary');
+export async function getDashboardSummary(hotelId?: string): Promise<DashboardSummary> {
+  const response = await api.get<DashboardSummary>('/dashboard/summary', {
+    params: hotelId ? { hotelId } : undefined,
+  });
   return response.data;
 }
 

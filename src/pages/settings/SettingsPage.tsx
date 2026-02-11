@@ -15,9 +15,9 @@ export function SettingsPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-hw-navy-900">Configuracoes</h1>
+        <h1 className="text-2xl font-bold text-hw-navy-900">Configurações</h1>
         <p className="text-hw-navy-500 mt-1">
-          Gerencie sua conta e preferencias.
+          Gerencie sua conta e preferências.
         </p>
       </div>
 
@@ -55,16 +55,16 @@ export function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell className="w-5 h-5" />
-            Notificacoes
+            Notificações
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-hw-navy-900">Alertas de preco</p>
+                <p className="font-medium text-hw-navy-900">Alertas de preço</p>
                 <p className="text-sm text-hw-navy-500">
-                  Receba notificacoes quando concorrentes mudarem precos
+                  Receba notificações quando concorrentes mudarem preços
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -77,7 +77,7 @@ export function SettingsPage() {
               <div>
                 <p className="font-medium text-hw-navy-900">Resumo semanal</p>
                 <p className="text-sm text-hw-navy-500">
-                  Receba um resumo semanal da concorrencia
+                  Receba um resumo semanal da concorrência
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -87,7 +87,7 @@ export function SettingsPage() {
             </div>
           </div>
           <p className="text-xs text-hw-navy-400 mt-4">
-            Configuracoes de notificacao estarao disponiveis em breve.
+            Configurações de notificação estarão disponíveis em breve.
           </p>
         </CardContent>
       </Card>
@@ -102,7 +102,7 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent>
           <p className="text-hw-navy-600 mb-4">
-            Gerencie seu plano, metodo de pagamento e veja faturas.
+            Gerencie seu plano, método de pagamento e veja faturas.
           </p>
           <Link to="/billing/manage">
             <Button variant="secondary" size="sm">

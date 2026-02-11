@@ -2,7 +2,8 @@ import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { getRatesComparison } from '../../services/api';
+import { HotelSelector } from '../../components/ui/HotelSelector';
+import { getRatesComparison, getHotels } from '../../services/api';
 import {
   DollarSign,
   TrendingUp,
@@ -14,17 +15,23 @@ import {
   Building2,
   Loader2,
   AlertCircle,
+  Lock,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { AreaChart, DonutChart, Legend } from '@tremor/react';
 import Joyride, { type CallBackProps, STATUS } from 'react-joyride';
 import { useTour } from '../../contexts/TourContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { ratesSteps } from '../../tour/steps/rates';
 import { TourTooltip } from '../../tour/TourTooltip';
 import { tourStyles } from '../../tour/tourStyles';
 
 export function RatesPage() {
-  const [selectedDays, setSelectedDays] = useState<7 | 15 | 30>(30);
+  const { user } = useAuth();
+  const horizonDays = user?.limits.horizonDays ?? 30;
+  const defaultDays = ([30, 15, 7] as const).find(d => d <= horizonDays) ?? 7;
+  const [selectedDays, setSelectedDays] = useState<7 | 15 | 30>(defaultDays);
+  const [selectedHotelId, setSelectedHotelId] = useState<string>('all');
   const { isRunning, currentPage, stopTour, markTourSeen } = useTour();
 
   const handleTourCallback = useCallback((data: CallBackProps) => {
@@ -35,9 +42,16 @@ export function RatesPage() {
     }
   }, [stopTour, markTourSeen]);
 
+  const { data: hotelsData } = useQuery({
+    queryKey: ['hotels'],
+    queryFn: getHotels,
+  });
+
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['rates', selectedDays],
-    queryFn: () => getRatesComparison(selectedDays),
+    queryKey: ['rates', selectedDays, selectedHotelId],
+    queryFn: () => getRatesComparison(selectedDays, selectedHotelId !== 'all' ? selectedHotelId : undefined),
+    staleTime: 0,
+    gcTime: 0,
   });
 
   if (isLoading) {
@@ -77,14 +91,14 @@ export function RatesPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-hw-navy-900">Espiao de Tarifas</h1>
-          <p className="text-hw-navy-500 mt-1">Compare seus precos com a concorrencia</p>
+          <h1 className="text-2xl font-bold text-hw-navy-900">Espião de Tarifas</h1>
+          <p className="text-hw-navy-500 mt-1">Compare seus preços com a concorrência</p>
         </div>
         <Card>
           <CardContent className="text-center py-12">
             <DollarSign className="w-12 h-12 text-hw-navy-300 mx-auto mb-3" />
             <h2 className="text-lg font-semibold text-hw-navy-900">Dados ainda sendo coletados</h2>
-            <p className="text-hw-navy-500 mt-1">Os dados de tarifas estarao disponiveis apos a primeira coleta do Booking.com.</p>
+            <p className="text-hw-navy-500 mt-1">Os dados de tarifas estarão disponíveis após a primeira coleta do Booking.com.</p>
           </CardContent>
         </Card>
       </div>
@@ -95,13 +109,13 @@ export function RatesPage() {
   const chartData = rates.map(r => ({
     date: formatDateShort(r.date),
     'Meu Hotel': r.myHotel,
-    'Media Concorrentes': r.avgCompetitor,
+    'Média Concorrentes': r.avgCompetitor,
   }));
 
   // Position distribution for donut chart
   const positionData = [
     { name: 'Mais barato', value: summary.cheaper, color: 'emerald' },
-    { name: 'Na media', value: summary.average, color: 'amber' },
+    { name: 'Na média', value: summary.average, color: 'amber' },
     { name: 'Mais caro', value: summary.expensive, color: 'rose' },
   ];
 
@@ -124,51 +138,69 @@ export function RatesPage() {
       {/* Header */}
       <div data-tour="rates-header" className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-hw-navy-900">Espiao de Tarifas</h1>
+          <h1 className="text-2xl font-bold text-hw-navy-900">Espião de Tarifas</h1>
           <p className="text-hw-navy-500 mt-1">
-            Compare seus precos com a concorrencia
+            Compare seus preços com a concorrência
           </p>
         </div>
 
-        {/* Period Selector */}
-        <div data-tour="rates-period-selector" className="flex bg-hw-navy-100 rounded-lg p-1">
-          {[7, 15, 30].map((days) => (
-            <button
-              key={days}
-              onClick={() => setSelectedDays(days as 7 | 15 | 30)}
-              className={cn(
-                'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
-                selectedDays === days
-                  ? 'bg-white text-hw-navy-900 shadow-sm'
-                  : 'text-hw-navy-600 hover:text-hw-navy-900'
-              )}
-            >
-              {days} dias
-            </button>
-          ))}
+        <div className="flex items-center gap-4">
+          {/* Hotel Selector */}
+          <HotelSelector
+            ownHotels={hotelsData?.ownHotels || []}
+            competitorHotels={hotelsData?.competitorHotels || []}
+            selectedHotelId={selectedHotelId}
+            onChange={setSelectedHotelId}
+          />
+
+          {/* Period Selector */}
+          <div data-tour="rates-period-selector" className="flex bg-hw-navy-100 rounded-lg p-1">
+          {([7, 15, 30] as const).map((days) => {
+            const locked = days > horizonDays;
+            return (
+              <button
+                key={days}
+                onClick={() => !locked && setSelectedDays(days)}
+                disabled={locked}
+                title={locked ? `Disponível a partir do plano Insight` : undefined}
+                className={cn(
+                  'px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1',
+                  locked
+                    ? 'text-hw-navy-400 cursor-not-allowed'
+                    : selectedDays === days
+                      ? 'bg-white text-hw-navy-900 shadow-sm'
+                      : 'text-hw-navy-600 hover:text-hw-navy-900'
+                )}
+              >
+                {days} dias
+                {locked && <Lock className="w-3 h-3" />}
+              </button>
+            );
+          })}
+        </div>
         </div>
       </div>
 
       {/* Summary Cards */}
       <div data-tour="rates-summary" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard
-          title="Minha Tarifa Media"
-          value={`R$ ${summary.avgMyHotel}`}
+          title="Minha Tarifa Média"
+          value={formatBRL(summary.avgMyHotel)}
           icon={DollarSign}
           color="purple"
         />
         <SummaryCard
-          title="Media Concorrentes"
-          value={`R$ ${summary.avgCompetitors}`}
+          title="Média Concorrentes"
+          value={formatBRL(summary.avgCompetitors)}
           icon={Building2}
           color="navy"
         />
         <SummaryCard
-          title="Diferenca"
+          title="Diferença"
           value={`${summary.avgDiff > 0 ? '+' : ''}${summary.avgDiff}%`}
           icon={summary.avgDiff > 0 ? TrendingUp : summary.avgDiff < 0 ? TrendingDown : Minus}
           color={summary.avgDiff > 0 ? 'red' : summary.avgDiff < 0 ? 'green' : 'yellow'}
-          subtitle={summary.avgDiff > 0 ? 'Acima da media' : summary.avgDiff < 0 ? 'Abaixo da media' : 'Na media'}
+          subtitle={summary.avgDiff > 0 ? 'Acima da média' : summary.avgDiff < 0 ? 'Abaixo da média' : 'Na média'}
         />
         <SummaryCard
           title="Dias Mais Barato"
@@ -185,17 +217,17 @@ export function RatesPage() {
         <div data-tour="rates-evolution-chart" className="lg:col-span-2">
         <Card>
           <CardHeader>
-            <CardTitle>Evolucao de Precos</CardTitle>
-            <CardDescription>Comparativo dos ultimos {selectedDays} dias</CardDescription>
+            <CardTitle>Evolução de Preços</CardTitle>
+            <CardDescription>Comparativo dos últimos {selectedDays} dias</CardDescription>
           </CardHeader>
           <CardContent>
             <AreaChart
               className="h-72"
               data={chartData}
               index="date"
-              categories={['Meu Hotel', 'Media Concorrentes']}
+              categories={['Meu Hotel', 'Média Concorrentes']}
               colors={['violet', 'slate']}
-              valueFormatter={(value) => `R$ ${value}`}
+              valueFormatter={(value) => formatBRL(value)}
               showLegend={true}
               showAnimation={true}
             />
@@ -208,7 +240,7 @@ export function RatesPage() {
         <Card>
           <CardHeader>
             <CardTitle>Posicionamento</CardTitle>
-            <CardDescription>Sua posicao em relacao aos concorrentes</CardDescription>
+            <CardDescription>Sua posição em relação aos concorrentes</CardDescription>
           </CardHeader>
           <CardContent>
             <DonutChart
@@ -221,7 +253,7 @@ export function RatesPage() {
             />
             <Legend
               className="mt-4"
-              categories={['Mais barato', 'Na media', 'Mais caro']}
+              categories={['Mais barato', 'Na média', 'Mais caro']}
               colors={['emerald', 'amber', 'rose']}
             />
           </CardContent>
@@ -234,7 +266,7 @@ export function RatesPage() {
         <div data-tour="rates-today-prices">
         <Card>
           <CardHeader>
-            <CardTitle>Precos de Hoje</CardTitle>
+            <CardTitle>Preços de Hoje</CardTitle>
             <CardDescription>Comparativo de tarifas para hoje</CardDescription>
           </CardHeader>
           <CardContent>
@@ -252,7 +284,7 @@ export function RatesPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-bold text-hw-purple">
-                    {rates[0]?.myHotel ? `R$ ${rates[0].myHotel}` : '--'}
+                    {formatBRL(rates[0]?.myHotel)}
                   </p>
                 </div>
               </div>
@@ -276,7 +308,7 @@ export function RatesPage() {
                     </div>
                     <div className="text-right flex items-center gap-4">
                       <p className="text-xl font-bold text-hw-navy-900">
-                        {comp.price ? `R$ ${comp.price}` : '--'}
+                        {formatBRL(comp.price)}
                       </p>
                       {diff !== null && (
                         <span className={cn(
@@ -302,7 +334,7 @@ export function RatesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Tabela de Tarifas</CardTitle>
-          <CardDescription>Detalhamento diario das tarifas</CardDescription>
+          <CardDescription>Detalhamento diário das tarifas</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -316,7 +348,7 @@ export function RatesPage() {
                       {h.name.split(' ').slice(0, 2).join(' ')}
                     </th>
                   ))}
-                  <th className="text-right py-3 px-4 font-semibold text-hw-navy-700">Posicao</th>
+                  <th className="text-right py-3 px-4 font-semibold text-hw-navy-700">Posição</th>
                 </tr>
               </thead>
               <tbody>
@@ -332,11 +364,11 @@ export function RatesPage() {
                       </div>
                     </td>
                     <td className="py-3 px-4 text-right font-semibold text-hw-purple">
-                      {rate.myHotel ? `R$ ${rate.myHotel}` : '--'}
+                      {formatBRL(rate.myHotel)}
                     </td>
                     {rate.competitors.slice(0, 3).map(comp => (
                       <td key={comp.hotelId} className="py-3 px-4 text-right text-hw-navy-700">
-                        {comp.price ? `R$ ${comp.price}` : '--'}
+                        {formatBRL(comp.price)}
                       </td>
                     ))}
                     <td className="py-3 px-4 text-right">
@@ -398,7 +430,7 @@ function PositionBadge({ position }: { position: 'cheaper' | 'average' | 'expens
 
   const config = {
     cheaper: { label: 'Mais barato', className: 'bg-green-100 text-green-700' },
-    average: { label: 'Na media', className: 'bg-yellow-100 text-yellow-700' },
+    average: { label: 'Na média', className: 'bg-yellow-100 text-yellow-700' },
     expensive: { label: 'Mais caro', className: 'bg-red-100 text-red-700' },
   };
 
@@ -418,10 +450,10 @@ function EmptyState() {
       </div>
       <h2 className="text-xl font-semibold text-hw-navy-900 mb-2">Nenhum hotel cadastrado</h2>
       <p className="text-hw-navy-500 max-w-md mb-4">
-        Adicione seu hotel e seus concorrentes para comecar a comparar tarifas.
+        Adicione seu hotel e seus concorrentes para começar a comparar tarifas.
       </p>
       <a href="/hotels" className="text-hw-purple font-medium hover:underline">
-        Ir para Meus Hoteis
+        Ir para Meus Hotéis
       </a>
     </div>
   );
@@ -436,4 +468,9 @@ function formatDateShort(dateStr: string) {
 function formatDateFull(dateStr: string) {
   const date = new Date(dateStr + 'T00:00:00');
   return date.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+}
+
+function formatBRL(value: number | null | undefined): string {
+  if (value == null) return '--';
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }

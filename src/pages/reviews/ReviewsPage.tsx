@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { HotelSelector } from '../../components/ui/HotelSelector';
 import { getReviews, getReviewsSummary, getHotels, getAiReviewSummary } from '../../services/api';
 import type { ReviewWithHotel, AiReviewSummary } from '../../services/api';
 import {
@@ -47,8 +48,10 @@ export function ReviewsPage() {
   });
 
   const { data: summaryData, isLoading: summaryLoading } = useQuery({
-    queryKey: ['reviews-summary'],
-    queryFn: getReviewsSummary,
+    queryKey: ['reviews-summary', selectedHotelId],
+    queryFn: () => getReviewsSummary(selectedHotelId !== 'all' ? selectedHotelId : undefined),
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const { data: reviewsData, isLoading: reviewsLoading, isError, refetch } = useQuery({
@@ -58,6 +61,8 @@ export function ReviewsPage() {
       limit: 50,
       hotelId: selectedHotelId !== 'all' ? selectedHotelId : undefined,
     }),
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const ownHotels = hotelsData?.ownHotels || [];
@@ -98,7 +103,7 @@ export function ReviewsPage() {
     return (
       <div className="text-center py-12">
         <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-        <h2 className="text-lg font-semibold text-hw-navy-900">Erro ao carregar avaliacoes</h2>
+        <h2 className="text-lg font-semibold text-hw-navy-900">Erro ao carregar avaliações</h2>
         <p className="text-hw-navy-500 mt-1">Tente novamente mais tarde.</p>
         <Button variant="secondary" onClick={() => refetch()} className="mt-4">
           Tentar novamente
@@ -113,6 +118,7 @@ export function ReviewsPage() {
     positive: 0,
     neutral: 0,
     negative: 0,
+    myAvgRating: 0,
     competitorAvgRating: 0,
     diff: 0,
   };
@@ -131,10 +137,10 @@ export function ReviewsPage() {
     { name: 'Negativas', value: mySummary.negative, color: 'rose' },
   ];
 
-  // Comparison bar chart data
+  // Comparison bar chart data — "Meu Hotel" uses myAvgRating (never changes)
   const comparisonData = [
-    { name: 'Meu Hotel', 'Nota Media': mySummary.avgRating },
-    { name: 'Concorrentes', 'Nota Media': mySummary.competitorAvgRating },
+    { name: 'Meu Hotel', 'Nota Média': mySummary.myAvgRating },
+    { name: 'Concorrentes', 'Nota Média': mySummary.competitorAvgRating },
   ];
 
   return (
@@ -156,26 +162,18 @@ export function ReviewsPage() {
       {/* Header */}
       <div data-tour="reviews-header" className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-hw-navy-900">Raio-X de Avaliacoes</h1>
+          <h1 className="text-2xl font-bold text-hw-navy-900">Raio-X de Avaliações</h1>
           <p className="text-hw-navy-500 mt-1">
-            Analise as avaliacoes do seu hotel e da concorrencia
+            Analise as avaliações do seu hotel e da concorrência
           </p>
         </div>
-        <div data-tour="reviews-hotel-selector" className="flex items-center gap-2">
-          <Building2 className="w-5 h-5 text-hw-navy-400" />
-          <select
-            value={selectedHotelId}
-            onChange={(e) => setSelectedHotelId(e.target.value)}
-            className="bg-white border border-hw-navy-200 rounded-lg px-3 py-2 text-sm text-hw-navy-900 focus:outline-none focus:ring-2 focus:ring-hw-purple focus:border-hw-purple"
-          >
-            <option value="all">Todos os Hoteis</option>
-            {ownHotels.map((h) => (
-              <option key={h.id} value={h.id}>{h.name} (Meu Hotel)</option>
-            ))}
-            {competitorHotels.map((h) => (
-              <option key={h.id} value={h.id}>{h.name}</option>
-            ))}
-          </select>
+        <div data-tour="reviews-hotel-selector">
+          <HotelSelector
+            ownHotels={ownHotels}
+            competitorHotels={competitorHotels}
+            selectedHotelId={selectedHotelId}
+            onChange={setSelectedHotelId}
+          />
         </div>
       </div>
 
@@ -188,7 +186,7 @@ export function ReviewsPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-hw-navy-900">{mySummary.avgRating}</p>
-              <p className="text-sm text-hw-navy-500">Nota Media</p>
+              <p className="text-sm text-hw-navy-500">Nota Média</p>
             </div>
           </CardContent>
         </Card>
@@ -245,8 +243,8 @@ export function ReviewsPage() {
         <div data-tour="reviews-sentiment-chart">
         <Card>
           <CardHeader>
-            <CardTitle>Distribuicao de Sentimento</CardTitle>
-            <CardDescription>Classificacao das avaliacoes do seu hotel</CardDescription>
+            <CardTitle>Distribuição de Sentimento</CardTitle>
+            <CardDescription>Classificação das avaliações do seu hotel</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-8">
@@ -291,14 +289,14 @@ export function ReviewsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Comparativo de Notas</CardTitle>
-            <CardDescription>Sua nota vs media dos concorrentes</CardDescription>
+            <CardDescription>Sua nota vs média dos concorrentes</CardDescription>
           </CardHeader>
           <CardContent>
             <BarChart
               className="h-48"
               data={comparisonData}
               index="name"
-              categories={['Nota Media']}
+              categories={['Nota Média']}
               colors={['violet']}
               valueFormatter={(value) => value.toFixed(1)}
               showAnimation={true}
@@ -306,9 +304,9 @@ export function ReviewsPage() {
             <div className="mt-4 p-4 bg-hw-navy-50 rounded-lg">
               <p className="text-sm text-hw-navy-600">
                 {mySummary.diff >= 0 ? (
-                  <>Seu hotel esta <span className="font-semibold text-green-600">{mySummary.diff} pontos acima</span> da media dos concorrentes!</>
+                  <>Seu hotel está <span className="font-semibold text-green-600">{mySummary.diff} pontos acima</span> da média dos concorrentes!</>
                 ) : (
-                  <>Seu hotel esta <span className="font-semibold text-red-600">{Math.abs(mySummary.diff)} pontos abaixo</span> da media dos concorrentes.</>
+                  <>Seu hotel está <span className="font-semibold text-red-600">{Math.abs(mySummary.diff)} pontos abaixo</span> da média dos concorrentes.</>
                 )}
               </p>
             </div>
@@ -344,8 +342,8 @@ export function ReviewsPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Avaliacoes Recentes</CardTitle>
-              <CardDescription>Ultimas avaliacoes recebidas</CardDescription>
+              <CardTitle>Avaliações Recentes</CardTitle>
+              <CardDescription>Últimas avaliações recebidas</CardDescription>
             </div>
 
             {/* Filter Buttons */}
@@ -380,7 +378,7 @@ export function ReviewsPage() {
 
             {reviews.length === 0 && (
               <div className="text-center py-8 text-hw-navy-500">
-                Nenhuma avaliacao encontrada com este filtro.
+                Nenhuma avaliação encontrada com este filtro.
               </div>
             )}
           </div>
@@ -413,7 +411,7 @@ function ReviewCard({ review }: { review: ReviewWithHotel }) {
 
           {/* Reviewer Info */}
           <div>
-            <p className="font-medium text-hw-navy-900">{review.reviewerName || 'Anonimo'}</p>
+            <p className="font-medium text-hw-navy-900">{review.reviewerName || 'Anônimo'}</p>
             <div className="flex items-center gap-2 text-sm text-hw-navy-500">
               {review.reviewerCountry && (
                 <>
@@ -509,7 +507,7 @@ function AiSummaryCard({
             </div>
             <div>
               <CardTitle>Resumo IA</CardTitle>
-              <CardDescription>Analise inteligente das avaliacoes</CardDescription>
+              <CardDescription>Análise inteligente das avaliações</CardDescription>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -538,15 +536,15 @@ function AiSummaryCard({
         {isLoading && (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 text-hw-purple animate-spin" />
-            <span className="ml-2 text-sm text-hw-navy-500">Analisando avaliacoes com IA...</span>
+            <span className="ml-2 text-sm text-hw-navy-500">Analisando avaliações com IA...</span>
           </div>
         )}
 
         {isError && !isLoading && (
           <div className="text-center py-6 text-hw-navy-500">
             <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
-            <p className="text-sm">Nao foi possivel gerar o resumo IA.</p>
-            <p className="text-xs text-hw-navy-400 mt-1">Verifique se a chave do Gemini esta configurada.</p>
+            <p className="text-sm">Não foi possível gerar o resumo IA.</p>
+            <p className="text-xs text-hw-navy-400 mt-1">Verifique se a chave do Gemini está configurada.</p>
           </div>
         )}
 
@@ -597,7 +595,7 @@ function AiSummaryCard({
             )}
 
             <p className="text-xs text-hw-navy-400">
-              Baseado em {summary.reviewCount} avaliacoes. Gerado em {new Date(summary.generatedAt).toLocaleDateString('pt-BR')}.
+              Baseado em {summary.reviewCount} avaliações. Gerado em {new Date(summary.generatedAt).toLocaleDateString('pt-BR')}.
             </p>
           </div>
         )}
@@ -613,12 +611,12 @@ function EmptyState() {
       <div className="w-16 h-16 bg-hw-purple-100 rounded-full flex items-center justify-center mb-4">
         <Star className="w-8 h-8 text-hw-purple" />
       </div>
-      <h2 className="text-xl font-semibold text-hw-navy-900 mb-2">Nenhuma avaliacao encontrada</h2>
+      <h2 className="text-xl font-semibold text-hw-navy-900 mb-2">Nenhuma avaliação encontrada</h2>
       <p className="text-hw-navy-500 max-w-md mb-4">
-        Adicione seu hotel para comecar a monitorar as avaliacoes.
+        Adicione seu hotel para começar a monitorar as avaliações.
       </p>
       <a href="/hotels" className="text-hw-purple font-medium hover:underline">
-        Ir para Meus Hoteis
+        Ir para Meus Hotéis
       </a>
     </div>
   );

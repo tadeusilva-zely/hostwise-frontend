@@ -1,8 +1,9 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { HotelSelector } from '../../components/ui/HotelSelector';
 import { getMe, getDashboardSummary, getHotels, getAiReviewSummary } from '../../services/api';
 import { Link } from 'react-router-dom';
 import {
@@ -32,6 +33,7 @@ import { TourTooltip } from '../../tour/TourTooltip';
 import { tourStyles } from '../../tour/tourStyles';
 
 export function Dashboard() {
+  const [selectedHotelId, setSelectedHotelId] = useState<string>('all');
   const { user: authUser } = useAuth();
   const { isRunning, currentPage, stopTour, markTourSeen } = useTour();
 
@@ -41,8 +43,10 @@ export function Dashboard() {
   });
 
   const { data: dashboard, isLoading: dashLoading, isError, refetch } = useQuery({
-    queryKey: ['dashboard'],
-    queryFn: getDashboardSummary,
+    queryKey: ['dashboard', selectedHotelId],
+    queryFn: () => getDashboardSummary(selectedHotelId !== 'all' ? selectedHotelId : undefined),
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const { data: hotelsData } = useQuery({
@@ -126,15 +130,25 @@ export function Dashboard() {
       />
 
       {/* Welcome */}
-      <div data-tour="dashboard-welcome">
-        <h1 className="text-2xl font-bold text-hw-navy-900">
-          Ola, {authUser?.name?.split(' ')[0] || 'Hoteleiro'}!
-        </h1>
-        <p className="text-hw-navy-500 mt-1">
-          {hasHotels
-            ? 'Aqui esta o resumo do seu hotel e concorrentes.'
-            : 'Bem-vindo ao HostWise. Cadastre seu hotel para comecar a monitorar.'}
-        </p>
+      <div data-tour="dashboard-welcome" className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-hw-navy-900">
+            Olá, {authUser?.name?.split(' ')[0] || 'Hoteleiro'}!
+          </h1>
+          <p className="text-hw-navy-500 mt-1">
+            {hasHotels
+              ? 'Aqui está o resumo do seu hotel e concorrentes.'
+              : 'Bem-vindo ao HostWise. Cadastre seu hotel para começar a monitorar.'}
+          </p>
+        </div>
+        {hasHotels && (
+          <HotelSelector
+            ownHotels={hotelsData?.ownHotels || []}
+            competitorHotels={hotelsData?.competitorHotels || []}
+            selectedHotelId={selectedHotelId}
+            onChange={setSelectedHotelId}
+          />
+        )}
       </div>
 
       {/* Trial Banner */}
@@ -147,10 +161,10 @@ export function Dashboard() {
               </div>
               <div>
                 <p className="font-semibold text-hw-navy-900">
-                  Periodo de teste ativo
+                  Período de teste ativo
                 </p>
                 <p className="text-sm text-hw-navy-600">
-                  Voce tem acesso as funcionalidades do plano Insight por mais {trialDaysLeft} dias.
+                  Você tem acesso às funcionalidades do plano Insight por mais {trialDaysLeft} dias.
                 </p>
               </div>
             </div>
@@ -181,7 +195,7 @@ export function Dashboard() {
                   Bem-vindo ao HostWise!
                 </h2>
                 <p className="text-hw-navy-600 mb-8 max-w-lg mx-auto text-base lg:text-lg">
-                  Comece cadastrando seu hotel para desbloquear o monitoramento inteligente de tarifas, avaliacoes e ocupacao.
+                  Comece cadastrando seu hotel para desbloquear o monitoramento inteligente de tarifas, avaliações e ocupação.
                 </p>
                 <Link to="/hotels">
                   <Button variant="primary" size="lg" className="shadow-lg">
@@ -201,9 +215,9 @@ export function Dashboard() {
                 <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-3">
                   <DollarSign className="w-6 h-6 text-green-600" />
                 </div>
-                <h3 className="font-semibold text-hw-navy-900 mb-1">Espiao de Tarifas</h3>
+                <h3 className="font-semibold text-hw-navy-900 mb-1">Espião de Tarifas</h3>
                 <p className="text-sm text-hw-navy-500">
-                  Compare seus precos com a concorrencia em tempo real.
+                  Compare seus preços com a concorrência em tempo real.
                 </p>
               </CardContent>
             </Card>
@@ -212,9 +226,9 @@ export function Dashboard() {
                 <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center mx-auto mb-3">
                   <Star className="w-6 h-6 text-yellow-600" />
                 </div>
-                <h3 className="font-semibold text-hw-navy-900 mb-1">Avaliacoes</h3>
+                <h3 className="font-semibold text-hw-navy-900 mb-1">Avaliações</h3>
                 <p className="text-sm text-hw-navy-500">
-                  Monitore e analise o que os hospedes estao dizendo.
+                  Monitore e analise o que os hóspedes estão dizendo.
                 </p>
               </CardContent>
             </Card>
@@ -223,9 +237,9 @@ export function Dashboard() {
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-3">
                   <Percent className="w-6 h-6 text-blue-600" />
                 </div>
-                <h3 className="font-semibold text-hw-navy-900 mb-1">Ocupacao</h3>
+                <h3 className="font-semibold text-hw-navy-900 mb-1">Ocupação</h3>
                 <p className="text-sm text-hw-navy-500">
-                  Acompanhe sua taxa de ocupacao e identifique oportunidades.
+                  Acompanhe sua taxa de ocupação e identifique oportunidades.
                 </p>
               </CardContent>
             </Card>
@@ -266,7 +280,7 @@ export function Dashboard() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-hw-navy-900">{reviews.avgRating}</p>
-                  <p className="text-sm text-hw-navy-500">Nota Media</p>
+                  <p className="text-sm text-hw-navy-500">Nota Média</p>
                 </div>
               </CardContent>
             </Card>
@@ -278,7 +292,7 @@ export function Dashboard() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-hw-navy-900">{occupancy.avgMyHotel}%</p>
-                  <p className="text-sm text-hw-navy-500">Ocupacao Media</p>
+                  <p className="text-sm text-hw-navy-500">Ocupação Média</p>
                 </div>
               </CardContent>
             </Card>
@@ -297,9 +311,9 @@ export function Dashboard() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <DollarSign className="w-5 h-5" />
-                    Posicao de Preco
+                    Posição de Preço
                   </CardTitle>
-                  <CardDescription>Comparativo com a media dos concorrentes</CardDescription>
+                  <CardDescription>Comparativo com a média dos concorrentes</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">
@@ -307,7 +321,7 @@ export function Dashboard() {
                       <p className="text-4xl font-bold text-hw-navy-900">
                         R$ {rates.avgMyHotel}
                       </p>
-                      <p className="text-sm text-hw-navy-500">Sua tarifa media</p>
+                      <p className="text-sm text-hw-navy-500">Sua tarifa média</p>
                     </div>
                     <div className="text-right">
                       <div className={cn(
@@ -322,9 +336,9 @@ export function Dashboard() {
                         {Math.abs(rates.avgDiff)}%
                       </div>
                       <p className="text-sm text-hw-navy-500">
-                        {rates.avgDiff < 0 ? 'Abaixo da media' :
-                         rates.avgDiff > 0 ? 'Acima da media' :
-                         'Na media'}
+                        {rates.avgDiff < 0 ? 'Abaixo da média' :
+                         rates.avgDiff > 0 ? 'Acima da média' :
+                         'Na média'}
                       </p>
                     </div>
                   </div>
@@ -352,9 +366,9 @@ export function Dashboard() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="w-5 h-5" />
-                    Evolucao de Precos
+                    Evolução de Preços
                   </CardTitle>
-                  <CardDescription>Ultimos 7 dias</CardDescription>
+                  <CardDescription>Últimos 7 dias</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <AreaChart
@@ -378,7 +392,7 @@ export function Dashboard() {
                     </span>
                   </div>
                   <Link to="/rates" className="mt-4 inline-flex items-center text-hw-purple font-medium hover:underline">
-                    Ver analise completa
+                    Ver análise completa
                     <ArrowRight className="w-4 h-4 ml-1" />
                   </Link>
                 </CardContent>
@@ -394,9 +408,9 @@ export function Dashboard() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Star className="w-5 h-5" />
-                    Avaliacoes
+                    Avaliações
                   </CardTitle>
-                  <CardDescription>Resumo das ultimas avaliacoes</CardDescription>
+                  <CardDescription>Resumo das últimas avaliações</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-6">
@@ -404,7 +418,7 @@ export function Dashboard() {
                       <div className="w-20 h-20 bg-hw-purple rounded-xl flex items-center justify-center">
                         <span className="text-3xl font-bold text-white">{reviews.avgRating}</span>
                       </div>
-                      <p className="text-sm text-hw-navy-500 mt-2">Nota media</p>
+                      <p className="text-sm text-hw-navy-500 mt-2">Nota média</p>
                     </div>
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center justify-between">
@@ -430,7 +444,7 @@ export function Dashboard() {
                     </div>
                   </div>
                   <Link to="/reviews" className="mt-4 inline-flex items-center text-hw-purple font-medium hover:underline">
-                    Ver todas avaliacoes
+                    Ver todas avaliações
                     <ArrowRight className="w-4 h-4 ml-1" />
                   </Link>
                 </CardContent>
@@ -443,9 +457,9 @@ export function Dashboard() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Calendar className="w-5 h-5" />
-                    Ocupacao
+                    Ocupação
                   </CardTitle>
-                  <CardDescription>Proximos 7 dias</CardDescription>
+                  <CardDescription>Próximos 7 dias</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-6">
@@ -458,7 +472,7 @@ export function Dashboard() {
                       )}>
                         <span className="text-3xl font-bold text-white">{occupancy.avgMyHotel}%</span>
                       </div>
-                      <p className="text-sm text-hw-navy-500 mt-2">Media geral</p>
+                      <p className="text-sm text-hw-navy-500 mt-2">Média geral</p>
                     </div>
                     <div className="flex-1 space-y-3">
                       <div className="flex items-center justify-between p-3 bg-hw-navy-50 rounded-lg">
@@ -466,7 +480,7 @@ export function Dashboard() {
                         <span className="font-semibold text-hw-navy-900">{occupancy.avgWeekend}%</span>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-hw-navy-50 rounded-lg">
-                        <span className="text-sm text-hw-navy-600">Dias uteis</span>
+                        <span className="text-sm text-hw-navy-600">Dias úteis</span>
                         <span className="font-semibold text-hw-navy-900">{occupancy.avgWeekday}%</span>
                       </div>
                     </div>
@@ -485,7 +499,7 @@ export function Dashboard() {
                     </span>
                   </div>
                   <Link to="/occupancy" className="mt-4 inline-flex items-center text-hw-purple font-medium hover:underline">
-                    Ver calendario completo
+                    Ver calendário completo
                     <ArrowRight className="w-4 h-4 ml-1" />
                   </Link>
                 </CardContent>
@@ -504,7 +518,7 @@ export function Dashboard() {
                   <p className="font-semibold text-hw-navy-900 mb-1">Insight IA</p>
                   <p className="text-sm text-hw-navy-700 leading-relaxed">{aiInsight.trendInsight}</p>
                   <Link to="/reviews" className="mt-2 inline-flex items-center text-hw-purple text-sm font-medium hover:underline">
-                    Ver analise completa
+                    Ver análise completa
                     <ArrowRight className="w-4 h-4 ml-1" />
                   </Link>
                 </div>
@@ -516,23 +530,23 @@ export function Dashboard() {
           <div data-tour="dashboard-quick-actions">
             <Card>
               <CardHeader>
-                <CardTitle>Acoes Rapidas</CardTitle>
+                <CardTitle>Ações Rápidas</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Link to="/hotels" className="p-4 bg-hw-navy-50 rounded-lg hover:bg-hw-navy-100 transition-colors">
                     <Building2 className="w-6 h-6 text-hw-purple mb-2" />
-                    <p className="font-semibold text-hw-navy-900">Gerenciar Hoteis</p>
-                    <p className="text-sm text-hw-navy-500">Adicionar ou remover hoteis</p>
+                    <p className="font-semibold text-hw-navy-900">Gerenciar Hotéis</p>
+                    <p className="text-sm text-hw-navy-500">Adicionar ou remover hotéis</p>
                   </Link>
                   <Link to="/rates" className="p-4 bg-hw-navy-50 rounded-lg hover:bg-hw-navy-100 transition-colors">
                     <DollarSign className="w-6 h-6 text-hw-purple mb-2" />
                     <p className="font-semibold text-hw-navy-900">Analisar Tarifas</p>
-                    <p className="text-sm text-hw-navy-500">Ver comparativo de precos</p>
+                    <p className="text-sm text-hw-navy-500">Ver comparativo de preços</p>
                   </Link>
                   <Link to="/reviews" className="p-4 bg-hw-navy-50 rounded-lg hover:bg-hw-navy-100 transition-colors">
                     <Star className="w-6 h-6 text-hw-purple mb-2" />
-                    <p className="font-semibold text-hw-navy-900">Ver Avaliacoes</p>
+                    <p className="font-semibold text-hw-navy-900">Ver Avaliações</p>
                     <p className="text-sm text-hw-navy-500">Acompanhar sentimento</p>
                   </Link>
                 </div>

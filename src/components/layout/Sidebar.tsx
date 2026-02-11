@@ -15,12 +15,12 @@ import {
 
 const mainMenuItems = [
   { icon: LayoutDashboard, label: 'HostWise', path: '/dashboard' },
-  { icon: DollarSign, label: 'Espiao de Tarifas', path: '/rates' },
-  { icon: TrendingUp, label: 'Sensor de Lotacao', path: '/occupancy' },
-  { icon: Star, label: 'Raio-X de Avaliacao', path: '/reviews' },
+  { icon: DollarSign, label: 'Espião de Tarifas', path: '/rates' },
+  { icon: TrendingUp, label: 'Sensor de Lotação', path: '/occupancy' },
+  { icon: Star, label: 'Raio-X de Avaliações', path: '/reviews' },
 ];
 
-const hotelMenuItem = { icon: Building2, label: 'Meus Hoteis', path: '/hotels' };
+const hotelMenuItem = { icon: Building2, label: 'Meus Hotéis', path: '/hotels' };
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -58,7 +58,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     }
   };
 
-  const userName = authUser?.name || 'Usuario';
+  const userName = authUser?.name || 'Usuário';
   const initial = userName.charAt(0).toUpperCase();
 
   return (

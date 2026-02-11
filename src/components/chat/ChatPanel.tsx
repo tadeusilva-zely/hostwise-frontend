@@ -25,9 +25,9 @@ interface ChatPanelProps {
 }
 
 const SUGGESTIONS = [
-  'Como estao minhas tarifas comparadas aos concorrentes?',
-  'O que meus hospedes mais elogiam?',
-  'Devo reajustar o preco no feriado?',
+  'Como estão minhas tarifas comparadas aos concorrentes?',
+  'O que meus hóspedes mais elogiam?',
+  'Devo reajustar o preço no feriado?',
   'Como posso melhorar minha nota?',
 ];
 
@@ -215,7 +215,7 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                             }}
                           >
                             <p className="text-sm font-medium text-hw-navy-900 truncate">
-                              {conv.title || 'Conversa sem titulo'}
+                              {conv.title || 'Conversa sem título'}
                             </p>
                             {conv.lastMessage && (
                               <p className="text-xs text-hw-navy-500 truncate mt-0.5">
@@ -257,7 +257,7 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                       Cadastre seu hotel primeiro
                     </h4>
                     <p className="text-xs text-hw-navy-500 mb-5 max-w-[250px]">
-                      Para usar o chat IA, voce precisa ter pelo menos um hotel cadastrado. A IA usa os dados do seu hotel para responder suas perguntas.
+                      Para usar o chat IA, você precisa ter pelo menos um hotel cadastrado. A IA usa os dados do seu hotel para responder suas perguntas.
                     </p>
                     <Link
                       to="/hotels"
@@ -279,7 +279,7 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                     Como posso ajudar?
                   </h4>
                   <p className="text-xs text-hw-navy-500 mb-5 max-w-[250px]">
-                    Pergunte sobre tarifas, avaliacoes, ocupacao ou concorrentes do seu hotel.
+                    Pergunte sobre tarifas, avaliações, ocupação ou concorrentes do seu hotel.
                   </p>
                   <div className="w-full space-y-2 overflow-x-auto lg:overflow-visible">
                     <div className="flex flex-nowrap lg:flex-wrap gap-2 px-2 lg:px-0 lg:justify-center">

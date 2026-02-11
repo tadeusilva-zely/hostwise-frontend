@@ -1,8 +1,9 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { getOccupancy } from '../../services/api';
+import { HotelSelector } from '../../components/ui/HotelSelector';
+import { getOccupancy, getHotels } from '../../services/api';
 import type { OccupancyDay } from '../../services/api';
 import {
   TrendingUp,
@@ -23,6 +24,7 @@ import { TourTooltip } from '../../tour/TourTooltip';
 import { tourStyles } from '../../tour/tourStyles';
 
 export function OccupancyPage() {
+  const [selectedHotelId, setSelectedHotelId] = useState<string>('all');
   const { isRunning, currentPage, stopTour, markTourSeen } = useTour();
 
   const handleTourCallback = useCallback((data: CallBackProps) => {
@@ -33,9 +35,16 @@ export function OccupancyPage() {
     }
   }, [stopTour, markTourSeen]);
 
+  const { data: hotelsData } = useQuery({
+    queryKey: ['hotels'],
+    queryFn: getHotels,
+  });
+
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['occupancy'],
-    queryFn: () => getOccupancy(30),
+    queryKey: ['occupancy', selectedHotelId],
+    queryFn: () => getOccupancy(30, selectedHotelId !== 'all' ? selectedHotelId : undefined),
+    staleTime: 0,
+    gcTime: 0,
   });
 
   if (isLoading) {
@@ -50,7 +59,7 @@ export function OccupancyPage() {
     return (
       <div className="text-center py-12">
         <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-        <h2 className="text-lg font-semibold text-hw-navy-900">Erro ao carregar ocupacao</h2>
+        <h2 className="text-lg font-semibold text-hw-navy-900">Erro ao carregar ocupação</h2>
         <p className="text-hw-navy-500 mt-1">Tente novamente mais tarde.</p>
         <Button variant="secondary" onClick={() => refetch()} className="mt-4">
           Tentar novamente
@@ -75,18 +84,22 @@ export function OccupancyPage() {
     return <EmptyState />;
   }
 
+  // Check if selected hotel is own (to hide competitor series)
+  const selectedIsOwn = hotelsData?.ownHotels?.some(h => h.id === selectedHotelId) ?? false;
+  const showCompetitors = selectedHotelId === 'all' || !selectedIsOwn;
+
   // Chart data
   const chartData = occupancy.map(o => ({
     date: formatDateShort(o.date),
     'Meu Hotel': o.occupancy,
-    'Media Concorrentes': o.competitorOccupancy,
+    ...(showCompetitors ? { 'Média Concorrentes': o.competitorOccupancy } : {}),
   }));
 
   // Weekly comparison data
   const weeklyChartData = weeklyData.map(w => ({
     name: w.week,
     'Meu Hotel': w.myHotel,
-    'Concorrentes': w.competitors,
+    ...(showCompetitors ? { 'Concorrentes': w.competitors } : {}),
   }));
 
   return (
@@ -106,11 +119,19 @@ export function OccupancyPage() {
       />
 
       {/* Header */}
-      <div data-tour="occupancy-header">
-        <h1 className="text-2xl font-bold text-hw-navy-900">Sensor de Lotacao</h1>
-        <p className="text-hw-navy-500 mt-1">
-          Acompanhe a ocupacao estimada do seu hotel e concorrentes
-        </p>
+      <div data-tour="occupancy-header" className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-hw-navy-900">Sensor de Lotação</h1>
+          <p className="text-hw-navy-500 mt-1">
+            Previsão de ocupação estimada para os próximos 30 dias (D+30)
+          </p>
+        </div>
+        <HotelSelector
+          ownHotels={hotelsData?.ownHotels || []}
+          competitorHotels={hotelsData?.competitorHotels || []}
+          selectedHotelId={selectedHotelId}
+          onChange={setSelectedHotelId}
+        />
       </div>
 
       {/* Summary Cards */}
@@ -122,7 +143,7 @@ export function OccupancyPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-hw-navy-900">{summary.avgMyHotel}%</p>
-              <p className="text-sm text-hw-navy-500">Ocupacao Media</p>
+              <p className="text-sm text-hw-navy-500">Ocupação Média</p>
             </div>
           </CardContent>
         </Card>
@@ -167,7 +188,7 @@ export function OccupancyPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-hw-navy-900">{summary.avgWeekday}%</p>
-              <p className="text-sm text-hw-navy-500">Dias Uteis</p>
+              <p className="text-sm text-hw-navy-500">Dias Úteis</p>
             </div>
           </CardContent>
         </Card>
@@ -177,16 +198,16 @@ export function OccupancyPage() {
       <div data-tour="occupancy-evolution-chart">
       <Card>
         <CardHeader>
-          <CardTitle>Evolucao da Ocupacao</CardTitle>
-          <CardDescription>Comparativo dos proximos 30 dias</CardDescription>
+          <CardTitle>Evolução da Ocupação</CardTitle>
+          <CardDescription>Projeção D+30 — Seu hotel vs concorrentes</CardDescription>
         </CardHeader>
         <CardContent>
           <AreaChart
             className="h-72"
             data={chartData}
             index="date"
-            categories={['Meu Hotel', 'Media Concorrentes']}
-            colors={['violet', 'slate']}
+            categories={showCompetitors ? ['Meu Hotel', 'Média Concorrentes'] : ['Meu Hotel']}
+            colors={showCompetitors ? ['violet', 'slate'] : ['violet']}
             valueFormatter={(value) => `${value}%`}
             showLegend={true}
             showAnimation={true}
@@ -202,17 +223,18 @@ export function OccupancyPage() {
         <Card>
           <CardHeader>
             <CardTitle>Comparativo Semanal</CardTitle>
-            <CardDescription>Ocupacao por semana</CardDescription>
+            <CardDescription>Média semanal — Próximos 30 dias</CardDescription>
           </CardHeader>
           <CardContent>
             <BarChart
               className="h-64"
               data={weeklyChartData}
               index="name"
-              categories={['Meu Hotel', 'Concorrentes']}
-              colors={['violet', 'slate']}
+              categories={showCompetitors ? ['Meu Hotel', 'Concorrentes'] : ['Meu Hotel']}
+              colors={showCompetitors ? ['violet', 'slate'] : ['violet']}
               valueFormatter={(value) => `${value}%`}
               showAnimation={true}
+              tickGap={2}
             />
           </CardContent>
         </Card>
@@ -223,14 +245,14 @@ export function OccupancyPage() {
         <Card>
           <CardHeader>
             <CardTitle>Destaques</CardTitle>
-            <CardDescription>Pontos de atencao do periodo</CardDescription>
+            <CardDescription>Pontos de atenção — Próximos 30 dias</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Highest Occupancy */}
             <div className="p-4 bg-green-50 rounded-lg border border-green-100">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingUp className="w-5 h-5 text-green-600" />
-                <span className="font-semibold text-green-700">Maior Ocupacao</span>
+                <span className="font-semibold text-green-700">Maior Ocupação</span>
               </div>
               <p className="text-2xl font-bold text-green-700">{summary.highest.occupancy}%</p>
               <p className="text-sm text-green-600">
@@ -242,7 +264,7 @@ export function OccupancyPage() {
             <div className="p-4 bg-red-50 rounded-lg border border-red-100">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingDown className="w-5 h-5 text-red-600" />
-                <span className="font-semibold text-red-700">Menor Ocupacao</span>
+                <span className="font-semibold text-red-700">Menor Ocupação</span>
               </div>
               <p className="text-2xl font-bold text-red-700">{summary.lowest.occupancy}%</p>
               <p className="text-sm text-red-600">
@@ -258,8 +280,8 @@ export function OccupancyPage() {
               </div>
               <p className="text-sm text-hw-navy-700">
                 {summary.diff < 0
-                  ? 'Sua ocupacao esta abaixo da concorrencia. Considere ajustar suas tarifas para aumentar a competitividade.'
-                  : 'Parabens! Sua ocupacao esta acima da media. Continue monitorando para manter o bom desempenho.'}
+                  ? 'Sua ocupação está abaixo da concorrência. Considere ajustar suas tarifas para aumentar a competitividade.'
+                  : 'Parabéns! Sua ocupação está acima da média. Continue monitorando para manter o bom desempenho.'}
               </p>
             </div>
           </CardContent>
@@ -271,8 +293,8 @@ export function OccupancyPage() {
       <div data-tour="occupancy-calendar">
       <Card>
         <CardHeader>
-          <CardTitle>Calendario de Ocupacao</CardTitle>
-          <CardDescription>Visualizacao diaria dos proximos 30 dias</CardDescription>
+          <CardTitle>Calendário de Ocupação</CardTitle>
+          <CardDescription>Ocupação diária estimada — D+30</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-7 gap-2">
@@ -317,29 +339,29 @@ export function OccupancyPage() {
 
 // Calendar Day Component
 function CalendarDay({ day, dayOfMonth }: { day: OccupancyDay; dayOfMonth: number }) {
-  const getOccupancyColor = (occupancy: number) => {
-    if (occupancy >= 80) return 'bg-green-500';
-    if (occupancy >= 60) return 'bg-green-300';
-    if (occupancy >= 40) return 'bg-yellow-300';
-    if (occupancy >= 20) return 'bg-orange-300';
-    return 'bg-red-300';
+  const getOccupancyStyle = (occupancy: number) => {
+    if (occupancy >= 80) return 'bg-green-600 text-white';
+    if (occupancy >= 60) return 'bg-green-100 text-green-800';
+    if (occupancy >= 40) return 'bg-yellow-100 text-yellow-800';
+    if (occupancy >= 20) return 'bg-orange-100 text-orange-800';
+    return 'bg-red-100 text-red-800';
   };
 
   return (
     <div className={cn(
-      'h-16 rounded-lg p-2 flex flex-col items-center justify-center text-center transition-colors',
+      'min-h-16 rounded-lg p-2 flex flex-col items-center justify-center text-center transition-colors',
       day.isWeekend ? 'bg-hw-navy-50' : 'bg-white',
       day.isHoliday && 'ring-2 ring-hw-purple ring-offset-1'
     )}>
       <span className="text-xs text-hw-navy-500">{dayOfMonth}</span>
       <div className={cn(
-        'w-8 h-5 rounded text-xs font-semibold text-white flex items-center justify-center mt-1',
-        getOccupancyColor(day.occupancy)
+        'w-10 h-5 rounded text-xs font-semibold flex items-center justify-center mt-1',
+        getOccupancyStyle(day.occupancy)
       )}>
         {day.occupancy}%
       </div>
       {day.isHoliday && (
-        <span className="text-[10px] text-hw-purple font-medium truncate w-full mt-0.5">
+        <span className="text-[10px] text-hw-purple font-medium w-full mt-0.5 leading-tight">
           {day.holidayName}
         </span>
       )}
@@ -356,10 +378,10 @@ function EmptyState() {
       </div>
       <h2 className="text-xl font-semibold text-hw-navy-900 mb-2">Nenhum hotel cadastrado</h2>
       <p className="text-hw-navy-500 max-w-md mb-4">
-        Adicione seu hotel para comecar a monitorar a ocupacao.
+        Adicione seu hotel para começar a monitorar a ocupação.
       </p>
       <a href="/hotels" className="text-hw-purple font-medium hover:underline">
-        Ir para Meus Hoteis
+        Ir para Meus Hotéis
       </a>
     </div>
   );

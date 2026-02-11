@@ -55,7 +55,7 @@ export function CreditPurchaseModal({ isOpen, onClose }: CreditPurchaseModalProp
         {/* Content */}
         <div className="p-5 space-y-3">
           <p className="text-sm text-hw-navy-600 mb-4">
-            Voce atingiu seu limite mensal. Compre mensagens extras para continuar conversando com a IA.
+            Você atingiu seu limite mensal. Compre mensagens extras para continuar conversando com a IA.
           </p>
 
           {packs.map((pack) => {
@@ -108,7 +108,7 @@ export function CreditPurchaseModal({ isOpen, onClose }: CreditPurchaseModalProp
 
           {packs.length === 0 && (
             <p className="text-sm text-hw-navy-500 text-center py-4">
-              Pacotes de creditos nao disponiveis no momento.
+              Pacotes de créditos não disponíveis no momento.
             </p>
           )}
         </div>

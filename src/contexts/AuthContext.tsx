@@ -31,6 +31,7 @@ interface RegisterData {
   email: string;
   password: string;
   name: string;
+  organizationName: string;
   cnpj?: string;
   phone?: string;
 }

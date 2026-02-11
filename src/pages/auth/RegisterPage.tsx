@@ -10,6 +10,7 @@ export function RegisterPage() {
 
   const [form, setForm] = useState({
     name: '',
+    organizationName: '',
     cnpj: '',
     phone: '',
     email: '',
@@ -69,6 +70,7 @@ export function RegisterPage() {
     try {
       await register({
         name: form.name,
+        organizationName: form.organizationName,
         email: form.email,
         password: form.password,
         cnpj: form.cnpj || undefined,
@@ -111,6 +113,21 @@ export function RegisterPage() {
               value={form.name}
               onChange={(e) => updateField('name', e.target.value)}
               placeholder="Seu nome completo"
+              required
+              className="input"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="organizationName" className="block text-sm font-medium text-hw-navy-700 mb-1.5">
+              Nome do Hotel *
+            </label>
+            <input
+              id="organizationName"
+              type="text"
+              value={form.organizationName}
+              onChange={(e) => updateField('organizationName', e.target.value)}
+              placeholder="Nome do seu hotel"
               required
               className="input"
             />

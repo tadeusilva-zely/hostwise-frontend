@@ -116,7 +116,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
         ...prev,
         seen: { ...prev.seen, [page]: true },
       };
-      updateTourPreferencesApi({ seen: { [page]: true } }).catch(() => {});
+      updateTourPreferencesApi({ seen: { [page]: true } as Record<TourPage, boolean> }).catch(() => {});
       return updated;
     });
   }, []);
@@ -128,7 +128,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
         ...prev,
         dismissCount: { ...prev.dismissCount, [page]: newCount },
       };
-      updateTourPreferencesApi({ dismissCount: { [page]: newCount } }).catch(() => {});
+      updateTourPreferencesApi({ dismissCount: { [page]: newCount } as Record<TourPage, number> }).catch(() => {});
       return updated;
     });
   }, []);

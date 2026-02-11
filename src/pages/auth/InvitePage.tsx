@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { validateInvitation, acceptInvitationApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserPlus, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 
 export function InvitePage() {
   const { token } = useParams<{ token: string }>();
-  const navigate = useNavigate();
   const { logout } = useAuth();
 
   const [inviteData, setInviteData] = useState<{ email: string; organizationName: string } | null>(null);

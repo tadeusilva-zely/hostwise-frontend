@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { ChatPanel } from './ChatPanel';
 

@@ -87,6 +87,11 @@ export function PricingPage() {
 
   const prices = pricesData?.prices || [];
   const hasPaidPlan = user?.plan !== 'STARTER';
+  const isTrialExpired =
+    user?.plan === 'STARTER' &&
+    !user?.isTrialActive &&
+    !!user?.trialEndsAt &&
+    new Date(user.trialEndsAt) < new Date();
 
   // Find Starter price from Stripe if available
   const starterPrice = prices.find((p: { name: string }) => p.name === 'Starter');
@@ -147,7 +152,8 @@ export function PricingPage() {
       <div className="grid md:grid-cols-3 gap-6">
         {allPlans.map((plan) => {
           const isPopular = plan.name === 'Insight';
-          const isCurrentPlan = user?.plan === plan.name.toUpperCase() || (plan.name === 'Professional' && user?.plan === 'PRO');
+          // When trial expired, Starter is NOT considered current plan — user must subscribe to continue
+          const isCurrentPlan = !isTrialExpired && (user?.plan === plan.name.toUpperCase() || (plan.name === 'Professional' && user?.plan === 'PRO'));
           const isStarter = plan.isStarter;
 
           return (

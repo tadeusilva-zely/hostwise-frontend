@@ -140,8 +140,22 @@ export async function getPrices(): Promise<{ prices: Price[] }> {
   return response.data;
 }
 
-export async function createCheckoutSession(priceId: string): Promise<{ url: string }> {
-  const response = await api.post<{ url: string }>('/billing/checkout', { priceId });
+export async function createCheckoutSession(priceId: string, couponId?: string): Promise<{ url: string }> {
+  const response = await api.post<{ url: string }>('/billing/checkout', { priceId, couponId });
+  return response.data;
+}
+
+
+export interface CouponValidationResult {
+  valid: boolean;
+  couponId?: string;
+  name?: string | null;
+  percentOff?: number | null;
+  amountOff?: number | null;
+}
+
+export async function validateCoupon(couponCode: string): Promise<CouponValidationResult> {
+  const response = await api.post<CouponValidationResult>('/billing/validate-coupon', { couponCode });
   return response.data;
 }
 

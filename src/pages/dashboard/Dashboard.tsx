@@ -23,7 +23,6 @@ import {
   Loader2,
   AlertCircle,
   Sparkles,
-  Lock,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import {

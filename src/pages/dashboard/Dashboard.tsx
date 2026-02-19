@@ -113,6 +113,9 @@ export function Dashboard() {
   const trialDaysLeft = user?.trialEndsAt
     ? Math.max(0, Math.ceil((new Date(user.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : 0;
+  const TRIAL_TOTAL_DAYS = 7;
+  const trialProgress = Math.round(((TRIAL_TOTAL_DAYS - trialDaysLeft) / TRIAL_TOTAL_DAYS) * 100);
+  const isTrialExpired = !isTrialActive && user?.plan === 'STARTER' && user?.trialEndsAt && new Date(user.trialEndsAt) < new Date();
 
   // Mini chart data from API
   const miniChartData = rates.chartData.map(r => ({
@@ -120,6 +123,51 @@ export function Dashboard() {
     'Meu Hotel': r.myHotel,
     'Concorrentes': r.competitors,
   }));
+
+  // Trial expired: show full-page upgrade wall
+  if (isTrialExpired) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <div className="text-center max-w-lg mx-auto px-6">
+          <div className="w-20 h-20 bg-gradient-to-br from-hw-purple to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <Zap className="w-10 h-10 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-hw-navy-900 mb-2">
+            Seu período de teste encerrou
+          </h1>
+          <p className="text-hw-navy-500 mb-6 text-base">
+            Você usou os {TRIAL_TOTAL_DAYS} dias gratuitos do HostWise. Escolha um plano para continuar monitorando tarifas, ocupação e avaliações do seu hotel.
+          </p>
+
+          {/* Feature reminder */}
+          <div className="grid grid-cols-3 gap-3 mb-8">
+            <div className="p-3 bg-hw-navy-50 rounded-lg text-center">
+              <DollarSign className="w-6 h-6 text-hw-purple mx-auto mb-1" />
+              <p className="text-xs font-medium text-hw-navy-700">Espião de Tarifas</p>
+            </div>
+            <div className="p-3 bg-hw-navy-50 rounded-lg text-center">
+              <Calendar className="w-6 h-6 text-hw-purple mx-auto mb-1" />
+              <p className="text-xs font-medium text-hw-navy-700">Sensor de Ocupação</p>
+            </div>
+            <div className="p-3 bg-hw-navy-50 rounded-lg text-center">
+              <Star className="w-6 h-6 text-hw-purple mx-auto mb-1" />
+              <p className="text-xs font-medium text-hw-navy-700">Raio-X de Avaliações</p>
+            </div>
+          </div>
+
+          <Link to="/billing">
+            <Button variant="primary" size="lg" className="w-full shadow-lg">
+              Ver planos e continuar
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </Link>
+          <p className="text-xs text-hw-navy-400 mt-3">
+            Planos a partir de R$ 57/mês · Cancele quando quiser
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -162,26 +210,46 @@ export function Dashboard() {
       {/* Trial Banner */}
       {isTrialActive && (
         <Card className="bg-gradient-to-r from-hw-purple-50 to-hw-purple-100 border border-hw-purple-200">
-          <CardContent className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-hw-purple rounded-lg flex items-center justify-center">
-                <Zap className="w-5 h-5 text-white" />
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-hw-purple rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Zap className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-hw-navy-900">
+                    Período de teste ativo —{' '}
+                    <span className={trialDaysLeft <= 2 ? 'text-red-600' : 'text-hw-purple'}>
+                      {trialDaysLeft} {trialDaysLeft === 1 ? 'dia restante' : 'dias restantes'}
+                    </span>
+                  </p>
+                  <p className="text-sm text-hw-navy-600">
+                    Faça upgrade antes de terminar para não perder o acesso.
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-semibold text-hw-navy-900">
-                  Período de teste ativo
-                </p>
-                <p className="text-sm text-hw-navy-600">
-                  Você tem acesso às funcionalidades do plano Insight por mais {trialDaysLeft} dias.
-                </p>
-              </div>
+              <Link to="/billing" className="flex-shrink-0">
+                <Button variant="primary" size="sm">
+                  Fazer upgrade
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
             </div>
-            <Link to="/billing">
-              <Button variant="primary" size="sm">
-                Fazer upgrade
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
+            {/* Progress bar */}
+            <div className="w-full bg-hw-purple-200 rounded-full h-2">
+              <div
+                className={cn(
+                  'h-2 rounded-full transition-all',
+                  trialDaysLeft <= 2 ? 'bg-red-500' : 'bg-hw-purple'
+                )}
+                style={{ width: `${trialProgress}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-hw-navy-500 mt-1">
+              <span>Início</span>
+              <span>Dia {TRIAL_TOTAL_DAYS - trialDaysLeft} de {TRIAL_TOTAL_DAYS}</span>
+              <span>Fim do trial</span>
+            </div>
           </CardContent>
         </Card>
       )}

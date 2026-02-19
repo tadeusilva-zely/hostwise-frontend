@@ -1,13 +1,30 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { TourProvider } from '../../contexts/TourContext';
 import { TourOfferPopup } from '../../tour/TourOfferPopup';
 import { ChatBubble } from '../chat/ChatBubble';
+import { useAuth } from '../../contexts/AuthContext';
+
+const TRIAL_ALLOWED_PATHS = ['/billing', '/billing/success', '/billing/manage'];
 
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAuth();
+  const location = useLocation();
+
+  const isTrialExpired =
+    user?.plan === 'STARTER' &&
+    !user?.isTrialActive &&
+    !!user?.trialEndsAt &&
+    new Date(user.trialEndsAt) < new Date();
+
+  const isAllowed = TRIAL_ALLOWED_PATHS.some((p) => location.pathname.startsWith(p));
+
+  if (isTrialExpired && !isAllowed && location.pathname !== '/dashboard') {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const closeSidebar = () => setSidebarOpen(false);
 

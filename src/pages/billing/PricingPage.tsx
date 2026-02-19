@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Check, Settings, Clock } from 'lucide-react';
+import { Check, Settings, Clock, Tag, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { getPrices, createCheckoutSession, getMe } from '../../services/api';
+import { getPrices, createCheckoutSession, getMe, validateCoupon, type CouponValidationResult } from '../../services/api';
 import { cn } from '../../lib/utils';
 
 type PlanFeature = {
@@ -52,6 +52,9 @@ const PRO_FEATURES: PlanFeature[] = [
 
 export function PricingPage() {
   const [selectedPrice, setSelectedPrice] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResult | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   const { data: user } = useQuery({
     queryKey: ['me'],
@@ -64,7 +67,8 @@ export function PricingPage() {
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: createCheckoutSession,
+    mutationFn: ({ priceId, couponId }: { priceId: string; couponId?: string }) =>
+      createCheckoutSession(priceId, couponId),
     onSuccess: (data) => {
       if (data.url) {
         window.location.href = data.url;
@@ -72,9 +76,40 @@ export function PricingPage() {
     },
   });
 
-  const handleCheckout = (priceId: string) => {
+  const validateCouponMutation = useMutation({
+    mutationFn: validateCoupon,
+    onSuccess: (data) => {
+      if (data.valid) {
+        setAppliedCoupon(data);
+        setCouponCode('');
+        setCouponError(null);
+      } else {
+        setCouponError('Cupom inválido ou expirado.');
+        setAppliedCoupon(null);
+      }
+    },
+    onError: () => {
+      setCouponError('Erro ao validar o cupom. Tente novamente.');
+      setAppliedCoupon(null);
+    },
+  });
+
+  const handleApplyCoupon = () => {
+    if (!couponCode.trim()) return;
+    setCouponError(null);
+    validateCouponMutation.mutate(couponCode.trim());
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponError(null);
+  };
+
+  const handleCheckout = (priceId: string, isInsight?: boolean) => {
     setSelectedPrice(priceId);
-    checkoutMutation.mutate(priceId);
+    const couponId = isInsight && appliedCoupon?.couponId ? appliedCoupon.couponId : undefined;
+    checkoutMutation.mutate({ priceId, couponId });
   };
 
   if (isLoading) {
@@ -86,7 +121,7 @@ export function PricingPage() {
   }
 
   const prices = pricesData?.prices || [];
-  const hasPaidPlan = user?.plan !== 'STARTER';
+  const hasPaidPlan = user?.plan === 'INSIGHT' || user?.plan === 'PRO';
   const isTrialExpired =
     user?.plan === 'STARTER' &&
     !user?.isTrialActive &&
@@ -149,6 +184,69 @@ export function PricingPage() {
         )}
       </div>
 
+      {/* Coupon Banner */}
+      {!hasPaidPlan && (
+        <div className="mb-8 p-4 rounded-xl border border-hw-navy-200 bg-hw-navy-50">
+          <div className="flex items-center gap-2 mb-3">
+            <Tag className="w-4 h-4 text-hw-purple" />
+            <span className="text-sm font-semibold text-hw-navy-700">Tem um cupom de desconto?</span>
+          </div>
+
+          {appliedCoupon ? (
+            <div className="flex items-center justify-between bg-hw-green/10 border border-hw-green/30 rounded-lg px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-hw-green">
+                  Cupom aplicado: {appliedCoupon.name}
+                </p>
+                <p className="text-xs text-hw-navy-500 mt-0.5">
+                  {appliedCoupon.percentOff
+                    ? `${appliedCoupon.percentOff}% de desconto`
+                    : appliedCoupon.amountOff
+                    ? `R$ ${(appliedCoupon.amountOff / 100).toFixed(2)} de desconto`
+                    : 'Desconto aplicado'}
+                  {' '}— válido para o plano Insight
+                </p>
+              </div>
+              <button
+                onClick={handleRemoveCoupon}
+                className="text-hw-navy-400 hover:text-hw-navy-600 ml-4"
+                aria-label="Remover cupom"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value);
+                    setCouponError(null);
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                  placeholder="Digite seu cupom"
+                  className="flex-1 px-3 py-2 text-sm border border-hw-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw-purple/30 bg-white"
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleApplyCoupon}
+                  isLoading={validateCouponMutation.isPending}
+                  disabled={!couponCode.trim()}
+                >
+                  Aplicar
+                </Button>
+              </div>
+              {couponError && (
+                <p className="mt-1.5 text-xs text-red-500">{couponError}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid md:grid-cols-3 gap-6">
         {allPlans.map((plan) => {
           const isPopular = plan.name === 'Insight';
@@ -202,7 +300,7 @@ export function PricingPage() {
                   <Button
                     variant={isPopular ? 'success' : 'primary'}
                     className="w-full"
-                    onClick={() => handleCheckout(plan.id)}
+                    onClick={() => handleCheckout(plan.id, plan.name === 'Insight')}
                     isLoading={checkoutMutation.isPending && selectedPrice === plan.id}
                   >
                     {isStarter ? 'Começar grátis' : 'Assinar agora'}

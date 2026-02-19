@@ -19,6 +19,7 @@ interface AuthUser {
     horizonDays: number;
     hasHistory: boolean;
     hasAlerts: boolean;
+    maxReviews: number | null;
   };
   tourPreferences: {
     seen: Record<string, boolean>;

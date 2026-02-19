@@ -1,11 +1,54 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Check, Settings } from 'lucide-react';
+import { Check, Settings, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { getPrices, createCheckoutSession, getMe } from '../../services/api';
 import { cn } from '../../lib/utils';
+
+type PlanFeature = {
+  text: string;
+  comingSoon?: boolean;
+};
+
+type PlanDefinition = {
+  id: string;
+  name: string;
+  price: number | 'trial';
+  trialDays?: number;
+  currency: string;
+  interval: string;
+  features: PlanFeature[];
+  isFree?: boolean;
+  isStarter?: boolean;
+};
+
+const STARTER_FEATURES: PlanFeature[] = [
+  { text: '1 Concorrente Monitorado' },
+  { text: 'Espião de Tarifas (7 dias futuros)' },
+  { text: 'Sensor de Lotação (7 dias futuros)' },
+  { text: 'Raio-X: Últimas 10 avaliações' },
+];
+
+const INSIGHT_FEATURES: PlanFeature[] = [
+  { text: '5 Concorrentes Monitorados' },
+  { text: 'Atualização a cada 24h' },
+  { text: 'Espião de Tarifas (90 dias futuro e passado)' },
+  { text: 'Sensor de Lotação (90 dias futuro)' },
+  { text: 'Raio-X de avaliações: Análise IA ilimitada de histórico e atualizada diariamente' },
+  { text: 'Alertas Ativos (Email)' },
+];
+
+const PRO_FEATURES: PlanFeature[] = [
+  { text: '15 Concorrentes Monitorados' },
+  { text: 'Gestão Multi-Propriedade (3 Hotéis)', comingSoon: true },
+  { text: 'Atualização a cada 24h' },
+  { text: 'Espião de Tarifas (90 dias futuro e passado)' },
+  { text: 'Sensor de Lotação (90 dias futuro)' },
+  { text: 'Raio-X de avaliações: Análise IA ilimitada de histórico e atualizada diariamente' },
+  { text: 'Alertas Ativos (Email)' },
+];
 
 export function PricingPage() {
   const [selectedPrice, setSelectedPrice] = useState<string | null>(null);
@@ -45,24 +88,39 @@ export function PricingPage() {
   const prices = pricesData?.prices || [];
   const hasPaidPlan = user?.plan !== 'STARTER';
 
-  // Add Starter plan info
-  const allPlans = [
+  // Find Starter price from Stripe if available
+  const starterPrice = prices.find((p: { name: string }) => p.name === 'Starter');
+  // Find Insight and Pro prices
+  const insightPrice = prices.find((p: { name: string }) => p.name === 'Insight');
+  const proPrice = prices.find((p: { name: string }) => p.name === 'Professional' || p.name === 'Pro');
+
+  const allPlans: PlanDefinition[] = [
     {
-      id: 'starter',
+      id: starterPrice?.id || 'starter',
       name: 'Starter',
-      price: 0,
+      price: 57,
+      trialDays: 7,
       currency: 'BRL',
       interval: 'month',
-      features: [
-        '1 concorrente monitorado',
-        'Atualização a cada 24 horas',
-        '15 dias de horizonte',
-        'Sem histórico',
-        'Sem alertas',
-      ],
-      isFree: true,
+      features: STARTER_FEATURES,
+      isStarter: true,
     },
-    ...prices,
+    {
+      id: insightPrice?.id || 'insight',
+      name: 'Insight',
+      price: 127,
+      currency: 'BRL',
+      interval: 'month',
+      features: INSIGHT_FEATURES,
+    },
+    {
+      id: proPrice?.id || 'pro',
+      name: 'Professional',
+      price: 297,
+      currency: 'BRL',
+      interval: 'month',
+      features: PRO_FEATURES,
+    },
   ];
 
   return (
@@ -89,8 +147,8 @@ export function PricingPage() {
       <div className="grid md:grid-cols-3 gap-6">
         {allPlans.map((plan) => {
           const isPopular = plan.name === 'Insight';
-          const isCurrentPlan = user?.plan === plan.name.toUpperCase();
-          const isFree = 'isFree' in plan && plan.isFree;
+          const isCurrentPlan = user?.plan === plan.name.toUpperCase() || (plan.name === 'Professional' && user?.plan === 'PRO');
+          const isStarter = plan.isStarter;
 
           return (
             <Card
@@ -111,22 +169,28 @@ export function PricingPage() {
               <div className="p-6">
                 <h3 className="text-xl font-bold text-hw-navy-900">{plan.name}</h3>
 
-                <div className="mt-4 mb-6">
+                <div className="mt-4 mb-1">
                   <span className="text-4xl font-bold text-hw-navy-900">
-                    {plan.price === 0 ? 'Grátis' : `R$ ${plan.price}`}
+                    R$ {plan.price}
                   </span>
-                  {plan.price > 0 && (
-                    <span className="text-hw-navy-500">/mês</span>
-                  )}
+                  <span className="text-hw-navy-500">/mês</span>
                 </div>
 
-                {isFree ? (
+                {isStarter && (
+                  <p className="text-sm text-hw-green font-medium mb-4">
+                    7 dias grátis para começar
+                  </p>
+                )}
+
+                {!isStarter && <div className="mb-4" />}
+
+                {isCurrentPlan ? (
                   <Button
                     variant="secondary"
                     className="w-full"
-                    disabled={isCurrentPlan}
+                    disabled
                   >
-                    {isCurrentPlan ? 'Plano atual' : 'Plano gratuito'}
+                    Plano atual
                   </Button>
                 ) : (
                   <Button
@@ -134,9 +198,8 @@ export function PricingPage() {
                     className="w-full"
                     onClick={() => handleCheckout(plan.id)}
                     isLoading={checkoutMutation.isPending && selectedPrice === plan.id}
-                    disabled={isCurrentPlan}
                   >
-                    {isCurrentPlan ? 'Plano atual' : 'Assinar agora'}
+                    {isStarter ? 'Começar grátis' : 'Assinar agora'}
                   </Button>
                 )}
 
@@ -144,7 +207,15 @@ export function PricingPage() {
                   {plan.features.map((feature, i) => (
                     <li key={i} className="flex items-start gap-3">
                       <Check className="w-5 h-5 text-hw-green flex-shrink-0 mt-0.5" />
-                      <span className="text-sm text-hw-navy-600">{feature}</span>
+                      <span className="text-sm text-hw-navy-600 flex items-center gap-2 flex-wrap">
+                        {feature.text}
+                        {feature.comingSoon && (
+                          <span className="inline-flex items-center gap-1 bg-hw-navy-100 text-hw-navy-500 text-xs px-2 py-0.5 rounded-full font-medium">
+                            <Clock className="w-3 h-3" />
+                            em breve
+                          </span>
+                        )}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -157,7 +228,7 @@ export function PricingPage() {
       {/* FAQ or additional info */}
       <div className="mt-12 text-center">
         <p className="text-hw-navy-500">
-          Todos os planos incluem 15 dias de teste grátis.{' '}
+          Todos os planos incluem 7 dias de teste grátis.{' '}
           <a href="#" className="text-hw-purple hover:underline">
             Dúvidas? Fale conosco
           </a>

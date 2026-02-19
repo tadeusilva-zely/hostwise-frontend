@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { HotelSelector } from '../../components/ui/HotelSelector';
@@ -14,16 +15,20 @@ import {
   Star,
   Loader2,
   AlertCircle,
+  Lock,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { AreaChart, BarChart } from '@tremor/react';
 import Joyride, { type CallBackProps, STATUS } from 'react-joyride';
 import { useTour } from '../../contexts/TourContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { occupancySteps } from '../../tour/steps/occupancy';
 import { TourTooltip } from '../../tour/TourTooltip';
 import { tourStyles } from '../../tour/tourStyles';
 
 export function OccupancyPage() {
+  const { user } = useAuth();
+  const horizonDays = user?.limits.horizonDays ?? 30;
   const [selectedHotelId, setSelectedHotelId] = useState<string>('all');
   const { isRunning, currentPage, stopTour, markTourSeen } = useTour();
 
@@ -68,7 +73,37 @@ export function OccupancyPage() {
     );
   }
 
-  const occupancy = data?.occupancy || [];
+  const realOccupancy = data?.occupancy || [];
+
+  // For plans with short horizon, pad with mock data to fill 30-day calendar
+  // Mock data is blurred — just visual incentive to upgrade, not real data
+  const CALENDAR_DISPLAY_DAYS = 30;
+  const occupancy = (() => {
+    if (realOccupancy.length >= CALENDAR_DISPLAY_DAYS) return realOccupancy;
+    const padded = [...realOccupancy];
+    const lastDate = realOccupancy.length > 0
+      ? new Date(realOccupancy[realOccupancy.length - 1]!.date + 'T00:00:00')
+      : new Date();
+    for (let i = 1; padded.length < CALENDAR_DISPLAY_DAYS; i++) {
+      const date = new Date(lastDate);
+      date.setDate(date.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0]!;
+      const dow = date.getDay();
+      const isWeekend = dow === 0 || dow === 6;
+      // Plausible-looking random occupancy: 45–85%
+      const mockOccupancy = 45 + Math.floor(((date.getDate() * 17 + i * 31) % 41));
+      padded.push({
+        date: dateStr,
+        occupancy: mockOccupancy,
+        competitorOccupancy: 45 + Math.floor(((date.getDate() * 13 + i * 23) % 41)),
+        isWeekend,
+        isHoliday: false,
+        holidayName: null,
+      });
+    }
+    return padded;
+  })();
+
   const summary = data?.summary || {
     avgMyHotel: 0,
     avgCompetitor: 0,
@@ -297,38 +332,68 @@ export function OccupancyPage() {
           <CardDescription>Ocupação diária estimada — D+30</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-7 gap-2">
-            {/* Week day headers */}
-            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map(day => (
-              <div key={day} className="text-center text-sm font-medium text-hw-navy-500 py-2">
-                {day}
-              </div>
-            ))}
+          <div className="relative">
+            <div className="grid grid-cols-7 gap-2">
+              {/* Week day headers */}
+              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map(day => (
+                <div key={day} className="text-center text-sm font-medium text-hw-navy-500 py-2">
+                  {day}
+                </div>
+              ))}
 
-            {/* Calendar days */}
-            {occupancy.map((day, index) => {
-              const date = new Date(day.date + 'T00:00:00');
-              const dayOfMonth = date.getDate();
+              {/* Calendar days */}
+              {occupancy.map((day, index) => {
+                const date = new Date(day.date + 'T00:00:00');
+                const dayOfMonth = date.getDate();
+                const isLocked = index >= horizonDays;
 
-              // Add empty cells for first week alignment
-              if (index === 0) {
-                const firstDayOfWeek = date.getDay();
-                const emptyCells = [];
-                for (let i = 0; i < firstDayOfWeek; i++) {
-                  emptyCells.push(
-                    <div key={`empty-${i}`} className="h-16" />
+                // Add empty cells for first week alignment
+                if (index === 0) {
+                  const firstDayOfWeek = date.getDay();
+                  const emptyCells = [];
+                  for (let i = 0; i < firstDayOfWeek; i++) {
+                    emptyCells.push(
+                      <div key={`empty-${i}`} className="h-16" />
+                    );
+                  }
+                  return (
+                    <>
+                      {emptyCells}
+                      <div key={day.date} className={cn(isLocked && 'blur-sm select-none pointer-events-none')}>
+                        <CalendarDay day={day} dayOfMonth={dayOfMonth} />
+                      </div>
+                    </>
                   );
                 }
-                return (
-                  <>
-                    {emptyCells}
-                    <CalendarDay key={day.date} day={day} dayOfMonth={dayOfMonth} />
-                  </>
-                );
-              }
 
-              return <CalendarDay key={day.date} day={day} dayOfMonth={dayOfMonth} />;
-            })}
+                return (
+                  <div key={day.date} className={cn(isLocked && 'blur-sm select-none pointer-events-none')}>
+                    <CalendarDay day={day} dayOfMonth={dayOfMonth} />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Upgrade CTA overlay — gradient over blurred days */}
+            {occupancy.length > horizonDays && (
+              <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none bg-gradient-to-t from-white via-white/95 to-transparent rounded-b-lg" />
+            )}
+            {occupancy.length > horizonDays && (
+              <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center justify-end pb-4 gap-2 text-center">
+                <Lock className="w-5 h-5 text-hw-navy-400" />
+                <p className="text-sm font-semibold text-hw-navy-800">
+                  Veja os próximos 90 dias no plano Insight
+                </p>
+                <p className="text-xs text-hw-navy-500">
+                  {occupancy.length - horizonDays} dias bloqueados
+                </p>
+                <Link to="/billing" className="pointer-events-auto">
+                  <Button size="sm" variant="primary">
+                    Fazer upgrade
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

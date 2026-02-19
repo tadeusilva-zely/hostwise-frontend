@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { HotelSelector } from '../../components/ui/HotelSelector';
@@ -18,7 +19,17 @@ import {
   Lock,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { AreaChart, DonutChart, Legend } from '@tremor/react';
+import { DonutChart, Legend } from '@tremor/react';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend as RechartLegend,
+  ResponsiveContainer,
+} from 'recharts';
 import Joyride, { type CallBackProps, STATUS } from 'react-joyride';
 import { useTour } from '../../contexts/TourContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -76,8 +87,39 @@ export function RatesPage() {
   }
 
   const summary = data?.summary || { avgMyHotel: 0, avgCompetitors: 0, avgDiff: 0, cheaper: 0, expensive: 0, average: 0, total: 0 };
-  const rates = data?.rates || [];
+  const realRates = data?.rates || [];
   const hotels = data?.hotels || [];
+
+  // Pad rates with mock rows to always show 30 days — locked rows are blurred
+  const TABLE_DISPLAY_DAYS = 30;
+  const rates = (() => {
+    if (realRates.length >= TABLE_DISPLAY_DAYS) return realRates;
+    const padded = [...realRates];
+    const competitors = hotels.filter(h => !h.isOwn);
+    const lastDate = realRates.length > 0
+      ? new Date(realRates[realRates.length - 1]!.date + 'T00:00:00')
+      : new Date();
+    for (let i = 1; padded.length < TABLE_DISPLAY_DAYS; i++) {
+      const date = new Date(lastDate);
+      date.setDate(date.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0]!;
+      const seed = date.getDate() * 17 + i * 31;
+      const mockMyHotel = 200 + (seed % 400);
+      padded.push({
+        date: dateStr,
+        myHotel: mockMyHotel,
+        competitors: competitors.map((c, ci) => ({
+          hotelId: c.id,
+          hotelName: c.name,
+          price: 180 + ((seed + ci * 43) % 350),
+        })),
+        avgCompetitor: 190 + ((seed + 11) % 380),
+        diff: null,
+        position: null,
+      });
+    }
+    return padded;
+  })();
 
   const ownHotel = hotels.find((h) => h.isOwn);
   const competitorHotels = hotels.filter((h) => !h.isOwn);
@@ -87,7 +129,7 @@ export function RatesPage() {
     return <EmptyState />;
   }
 
-  if (rates.length === 0) {
+  if (realRates.length === 0) {
     return (
       <div className="space-y-6">
         <div>
@@ -105,8 +147,8 @@ export function RatesPage() {
     );
   }
 
-  // Chart data
-  const chartData = rates.map(r => ({
+  // Chart data — use only real data, not mock rows
+  const chartData = realRates.map(r => ({
     date: formatDateShort(r.date),
     'Meu Hotel': r.myHotel,
     'Média Concorrentes': r.avgCompetitor,
@@ -218,19 +260,30 @@ export function RatesPage() {
         <Card>
           <CardHeader>
             <CardTitle>Evolução de Preços</CardTitle>
-            <CardDescription>Comparativo dos últimos {selectedDays} dias</CardDescription>
+            <CardDescription>Previsão dos próximos {selectedDays} dias</CardDescription>
           </CardHeader>
           <CardContent>
-            <AreaChart
-              className="h-72"
-              data={chartData}
-              index="date"
-              categories={['Meu Hotel', 'Média Concorrentes']}
-              colors={['violet', 'slate']}
-              valueFormatter={(value) => formatBRL(value)}
-              showLegend={true}
-              showAnimation={true}
-            />
+            <ResponsiveContainer width="100%" height={288}>
+              <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorMyHotel" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorCompetitors" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#64748b" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#64748b" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="date" interval={0} tick={{ fontSize: 12, fill: '#64748b' }} />
+                <YAxis tickFormatter={(v) => formatBRL(v)} tick={{ fontSize: 11, fill: '#64748b' }} width={90} />
+                <Tooltip formatter={(value: number) => formatBRL(value)} />
+                <RechartLegend />
+                <Area type="monotone" dataKey="Meu Hotel" stroke="#7c3aed" fill="url(#colorMyHotel)" strokeWidth={2} dot={{ r: 3 }} />
+                <Area type="monotone" dataKey="Média Concorrentes" stroke="#64748b" fill="url(#colorCompetitors)" strokeWidth={2} dot={{ r: 3 }} />
+              </AreaChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
         </div>
@@ -262,7 +315,7 @@ export function RatesPage() {
       </div>
 
       {/* Competitor Prices Today */}
-      {rates.length > 0 && (
+      {realRates.length > 0 && (
         <div data-tour="rates-today-prices">
         <Card>
           <CardHeader>
@@ -334,50 +387,77 @@ export function RatesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Tabela de Tarifas</CardTitle>
-          <CardDescription>Detalhamento diário das tarifas</CardDescription>
+          <CardDescription>Tarifas diárias previstas — próximos {horizonDays} dias</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-hw-navy-100">
-                  <th className="text-left py-3 px-4 font-semibold text-hw-navy-700">Data</th>
-                  <th className="text-right py-3 px-4 font-semibold text-hw-navy-700">Meu Hotel</th>
-                  {competitorHotels.slice(0, 3).map(h => (
-                    <th key={h.id} className="text-right py-3 px-4 font-semibold text-hw-navy-700">
-                      {h.name.split(' ').slice(0, 2).join(' ')}
-                    </th>
-                  ))}
-                  <th className="text-right py-3 px-4 font-semibold text-hw-navy-700">Posição</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rates.map((rate, idx) => (
-                  <tr key={rate.date} className={cn(
-                    'border-b border-hw-navy-50',
-                    idx % 2 === 0 && 'bg-hw-navy-50/50'
-                  )}>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-hw-navy-400" />
-                        {formatDateFull(rate.date)}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-right font-semibold text-hw-purple">
-                      {formatBRL(rate.myHotel)}
-                    </td>
-                    {rate.competitors.slice(0, 3).map(comp => (
-                      <td key={comp.hotelId} className="py-3 px-4 text-right text-hw-navy-700">
-                        {formatBRL(comp.price)}
-                      </td>
+          <div className="relative">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-hw-navy-100">
+                    <th className="text-left py-3 px-4 font-semibold text-hw-navy-700">Data</th>
+                    <th className="text-right py-3 px-4 font-semibold text-hw-navy-700">Meu Hotel</th>
+                    {competitorHotels.slice(0, 3).map(h => (
+                      <th key={h.id} className="text-right py-3 px-4 font-semibold text-hw-navy-700">
+                        {h.name.split(' ').slice(0, 2).join(' ')}
+                      </th>
                     ))}
-                    <td className="py-3 px-4 text-right">
-                      <PositionBadge position={rate.position} />
-                    </td>
+                    <th className="text-right py-3 px-4 font-semibold text-hw-navy-700">Posição</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rates.map((rate, idx) => {
+                    const isLocked = idx >= horizonDays;
+                    return (
+                      <tr key={rate.date} className={cn(
+                        'border-b border-hw-navy-50',
+                        idx % 2 === 0 && 'bg-hw-navy-50/50',
+                        isLocked && 'blur-sm select-none pointer-events-none'
+                      )}>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-hw-navy-400" />
+                            {formatDateFull(rate.date)}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-right font-semibold text-hw-purple">
+                          {formatBRL(rate.myHotel)}
+                        </td>
+                        {rate.competitors.slice(0, 3).map(comp => (
+                          <td key={comp.hotelId} className="py-3 px-4 text-right text-hw-navy-700">
+                            {formatBRL(comp.price)}
+                          </td>
+                        ))}
+                        <td className="py-3 px-4 text-right">
+                          <PositionBadge position={rate.position} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Gradient + CTA overlay over locked rows */}
+            {rates.length > horizonDays && (
+              <>
+                <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none bg-gradient-to-t from-white via-white/95 to-transparent rounded-b-lg" />
+                <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center justify-end pb-4 gap-2 text-center">
+                  <Lock className="w-5 h-5 text-hw-navy-400" />
+                  <p className="text-sm font-semibold text-hw-navy-800">
+                    Veja os próximos 90 dias no plano Insight
+                  </p>
+                  <p className="text-xs text-hw-navy-500">
+                    {rates.length - horizonDays} dias bloqueados
+                  </p>
+                  <Link to="/billing">
+                    <Button size="sm" variant="primary">
+                      Fazer upgrade
+                    </Button>
+                  </Link>
+                </div>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>

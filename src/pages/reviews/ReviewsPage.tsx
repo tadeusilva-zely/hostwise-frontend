@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { HotelSelector } from '../../components/ui/HotelSelector';
@@ -25,11 +26,14 @@ import { cn } from '../../lib/utils';
 import { BarChart, DonutChart } from '@tremor/react';
 import Joyride, { type CallBackProps, STATUS } from 'react-joyride';
 import { useTour } from '../../contexts/TourContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { reviewsSteps } from '../../tour/steps/reviews';
 import { TourTooltip } from '../../tour/TourTooltip';
 import { tourStyles } from '../../tour/tourStyles';
 
 export function ReviewsPage() {
+  const { user } = useAuth();
+  const maxReviews = user?.limits.maxReviews ?? null;
   const [filter, setFilter] = useState<'all' | 'positive' | 'neutral' | 'negative'>('all');
   const [selectedHotelId, setSelectedHotelId] = useState<string>('all');
   const { isRunning, currentPage, stopTour, markTourSeen } = useTour();
@@ -123,7 +127,10 @@ export function ReviewsPage() {
     diff: 0,
   };
 
-  const reviews = reviewsData?.reviews || [];
+  const allReviews = reviewsData?.reviews || [];
+  const reviews = maxReviews ? allReviews.slice(0, maxReviews) : allReviews;
+  const lockedReviews = maxReviews ? allReviews.slice(maxReviews, maxReviews + 3) : [];
+  const hasMoreReviews = maxReviews ? allReviews.length > maxReviews : false;
 
   // No reviews at all
   if (mySummary.totalReviews === 0 && reviews.length === 0) {
@@ -321,6 +328,7 @@ export function ReviewsPage() {
         summary={aiSummary}
         isLoading={aiLoading}
         isError={aiError}
+        isLocked={!!maxReviews}
         hotels={allHotels.map((h) => ({ id: h.id, name: h.name, isOwn: h.isOwn }))}
         selectedHotelId={aiHotelId}
         onHotelChange={setAiHotelId}
@@ -382,6 +390,31 @@ export function ReviewsPage() {
               </div>
             )}
           </div>
+
+          {/* Blur + CTA for locked reviews beyond plan limit */}
+          {hasMoreReviews && (
+            <div className="relative mt-4">
+              <div className="blur-sm pointer-events-none select-none space-y-4">
+                {lockedReviews.map(review => (
+                  <ReviewCard key={review.id} review={review} />
+                ))}
+              </div>
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-t from-white via-white/95 to-white/60 rounded-lg">
+                <Sparkles className="w-6 h-6 text-hw-purple mb-2" />
+                <p className="font-semibold text-hw-navy-900 text-sm">
+                  Ver todas as avaliações requer upgrade
+                </p>
+                <p className="text-xs text-hw-navy-500 mt-1 mb-3">
+                  O plano Starter exibe apenas as últimas 10 avaliações
+                </p>
+                <Link to="/billing">
+                  <Button size="sm" variant="primary">
+                    Ver planos e fazer upgrade
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
       </div>
@@ -484,6 +517,7 @@ function AiSummaryCard({
   summary,
   isLoading,
   isError,
+  isLocked,
   hotels,
   selectedHotelId,
   onHotelChange,
@@ -492,11 +526,59 @@ function AiSummaryCard({
   summary: AiReviewSummary | undefined;
   isLoading: boolean;
   isError: boolean;
+  isLocked: boolean;
   hotels: Array<{ id: string; name: string; isOwn: boolean }>;
   selectedHotelId: string | null;
   onHotelChange: (hotelId: string) => void;
   onRefresh: () => void;
 }) {
+  if (isLocked) {
+    return (
+      <Card className="relative overflow-hidden">
+        {/* Blurred preview of the card content */}
+        <div className="blur-sm pointer-events-none select-none">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-hw-purple to-indigo-600 rounded-lg flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <CardTitle>Resumo IA</CardTitle>
+                <CardDescription>Análise inteligente das avaliações</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="h-4 bg-hw-navy-100 rounded w-3/4" />
+              <div className="h-4 bg-hw-navy-100 rounded w-full" />
+              <div className="h-4 bg-hw-navy-100 rounded w-5/6" />
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="p-4 bg-green-50 rounded-lg h-24" />
+                <div className="p-4 bg-red-50 rounded-lg h-24" />
+              </div>
+            </div>
+          </CardContent>
+        </div>
+        {/* Upgrade overlay */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/85 rounded-xl">
+          <div className="w-12 h-12 bg-gradient-to-br from-hw-purple to-indigo-600 rounded-xl flex items-center justify-center mb-3">
+            <Sparkles className="w-6 h-6 text-white" />
+          </div>
+          <p className="font-semibold text-hw-navy-900 text-base mb-1">Análise IA de Avaliações</p>
+          <p className="text-sm text-hw-navy-500 mb-4 text-center max-w-xs">
+            Disponível a partir do plano Insight — resumo automático, pontos fortes e fracos.
+          </p>
+          <Link to="/billing">
+            <Button variant="primary" size="sm">
+              Ver planos e fazer upgrade
+            </Button>
+          </Link>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>

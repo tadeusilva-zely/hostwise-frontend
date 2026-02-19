@@ -23,9 +23,18 @@ import {
   Loader2,
   AlertCircle,
   Sparkles,
+  Lock,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { AreaChart } from '@tremor/react';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 import Joyride, { type CallBackProps, STATUS } from 'react-joyride';
 import { useTour } from '../../contexts/TourContext';
 import { dashboardSteps } from '../../tour/steps/dashboard';
@@ -108,7 +117,7 @@ export function Dashboard() {
 
   // Mini chart data from API
   const miniChartData = rates.chartData.map(r => ({
-    date: r.date.slice(5),
+    date: r.date.slice(8) + '/' + r.date.slice(5, 7),
     'Meu Hotel': r.myHotel,
     'Concorrentes': r.competitors,
   }));
@@ -299,10 +308,10 @@ export function Dashboard() {
           </div>
 
           {/* Price Comparison Highlight */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             {/* Today's Price Position */}
-            <div data-tour="dashboard-price-position">
-              <Card className={cn(
+            <div data-tour="dashboard-price-position" className="flex flex-col">
+              <Card className={cn('flex-1',
                 'border-2',
                 rates.avgDiff < 0 ? 'border-green-200 bg-green-50/50' :
                 rates.avgDiff > 0 ? 'border-red-200 bg-red-50/50' :
@@ -361,8 +370,8 @@ export function Dashboard() {
             </div>
 
             {/* Price Evolution Mini Chart */}
-            <div data-tour="dashboard-price-chart">
-              <Card>
+            <div data-tour="dashboard-price-chart" className="flex flex-col">
+              <Card className="flex-1">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="w-5 h-5" />
@@ -371,16 +380,26 @@ export function Dashboard() {
                   <CardDescription>Últimos 7 dias</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <AreaChart
-                    className="h-40"
-                    data={miniChartData}
-                    index="date"
-                    categories={['Meu Hotel', 'Concorrentes']}
-                    colors={['violet', 'slate']}
-                    valueFormatter={(value) => `R$ ${value}`}
-                    showLegend={false}
-                    showAnimation={true}
-                  />
+                  <ResponsiveContainer width="100%" height={160}>
+                    <AreaChart data={miniChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="dashColorMyHotel" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="dashColorCompetitors" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#64748b" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#64748b" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="date" interval={0} tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <YAxis tickFormatter={(v) => `R$ ${v}`} tick={{ fontSize: 10, fill: '#64748b' }} width={60} />
+                      <Tooltip formatter={(value: number) => [`R$ ${value}`, '']} />
+                      <Area type="monotone" dataKey="Meu Hotel" stroke="#7c3aed" fill="url(#dashColorMyHotel)" strokeWidth={2} dot={{ r: 3 }} />
+                      <Area type="monotone" dataKey="Concorrentes" stroke="#64748b" fill="url(#dashColorCompetitors)" strokeWidth={2} dot={{ r: 3 }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
                   <div className="mt-2 flex items-center justify-center gap-6 text-sm">
                     <span className="flex items-center gap-2">
                       <span className="w-3 h-3 bg-violet-500 rounded-full"></span>
@@ -401,10 +420,10 @@ export function Dashboard() {
           </div>
 
           {/* Reviews & Occupancy Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             {/* Reviews Summary */}
-            <div data-tour="dashboard-reviews">
-              <Card>
+            <div data-tour="dashboard-reviews" className="flex flex-col">
+              <Card className="flex-1">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Star className="w-5 h-5" />
@@ -452,8 +471,8 @@ export function Dashboard() {
             </div>
 
             {/* Occupancy Summary */}
-            <div data-tour="dashboard-occupancy">
-              <Card>
+            <div data-tour="dashboard-occupancy" className="flex flex-col">
+              <Card className="flex-1">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Calendar className="w-5 h-5" />
@@ -508,7 +527,48 @@ export function Dashboard() {
           </div>
 
           {/* AI Insight */}
-          {aiInsight?.trendInsight && (
+          {authUser?.limits.maxReviews ? (
+            // STARTER: blurred preview + upgrade CTA — same style as ReviewsPage
+            <Card className="relative overflow-hidden">
+              <div className="blur-sm pointer-events-none select-none">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-gradient-to-br from-hw-purple to-indigo-600 rounded-lg flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <CardTitle>Resumo IA</CardTitle>
+                      <CardDescription>Análise inteligente das avaliações</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="h-4 bg-hw-navy-100 rounded w-3/4" />
+                    <div className="h-4 bg-hw-navy-100 rounded w-full" />
+                    <div className="h-4 bg-hw-navy-100 rounded w-5/6" />
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <div className="p-4 bg-green-50 rounded-lg h-24" />
+                      <div className="p-4 bg-red-50 rounded-lg h-24" />
+                    </div>
+                  </div>
+                </CardContent>
+              </div>
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/85 rounded-xl">
+                <div className="w-12 h-12 bg-gradient-to-br from-hw-purple to-indigo-600 rounded-xl flex items-center justify-center mb-3">
+                  <Sparkles className="w-6 h-6 text-white" />
+                </div>
+                <p className="font-semibold text-hw-navy-900 text-base mb-1">Análise IA de Avaliações</p>
+                <p className="text-sm text-hw-navy-500 mb-4 text-center max-w-xs">
+                  Disponível a partir do plano Insight — resumo automático, pontos fortes e fracos.
+                </p>
+                <Link to="/billing">
+                  <Button variant="primary" size="sm">Ver planos e fazer upgrade</Button>
+                </Link>
+              </div>
+            </Card>
+          ) : aiInsight?.trendInsight ? (
+            // INSIGHT / PRO: show real content
             <Card className="border-2 border-hw-purple-200 bg-gradient-to-r from-hw-purple-50 to-indigo-50">
               <CardContent className="flex items-start gap-4 py-5">
                 <div className="w-10 h-10 bg-gradient-to-br from-hw-purple to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -524,7 +584,7 @@ export function Dashboard() {
                 </div>
               </CardContent>
             </Card>
-          )}
+          ) : null}
 
           {/* Quick Actions */}
           <div data-tour="dashboard-quick-actions">

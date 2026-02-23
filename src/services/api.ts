@@ -138,6 +138,11 @@ export async function revokeInvitationApi(id: string): Promise<void> {
   await api.delete(`/auth/invitations/${id}`);
 }
 
+export async function resendInvitationApi(id: string): Promise<{ success: boolean; message: string }> {
+  const response = await api.post<{ success: boolean; message: string }>(`/auth/invitations/${id}/resend`);
+  return response.data;
+}
+
 export async function validateInvitation(token: string): Promise<{ email: string; organizationName: string }> {
   const response = await api.get<{ email: string; organizationName: string }>(`/auth/invitations/validate/${token}`);
   return response.data;

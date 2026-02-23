@@ -4,9 +4,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { User, Bell, Shield, Users, Copy, Trash2, Loader2, Check } from 'lucide-react';
+import { User, Bell, Shield, Users, Copy, Trash2, Loader2, Check, Send } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getTeamMembers, getInvitations, createInvitationApi, revokeInvitationApi } from '../../services/api';
+import { getTeamMembers, getInvitations, createInvitationApi, revokeInvitationApi, resendInvitationApi } from '../../services/api';
 
 export function SettingsPage() {
   const { user: authUser } = useAuth();
@@ -155,6 +155,16 @@ function TeamSection({ queryClient }: { queryClient: ReturnType<typeof useQueryC
     },
   });
 
+  const [resendSuccess, setResendSuccess] = useState('');
+
+  const resendInvite = useMutation({
+    mutationFn: (id: string) => resendInvitationApi(id),
+    onSuccess: (_data, id) => {
+      setResendSuccess(id);
+      setTimeout(() => setResendSuccess(''), 3000);
+    },
+  });
+
   const handleCopyLink = (url: string) => {
     navigator.clipboard.writeText(url);
     setCopiedLink(url);
@@ -269,6 +279,21 @@ function TeamSection({ queryClient }: { queryClient: ReturnType<typeof useQueryC
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => resendInvite.mutate(invite.id)}
+                      className="p-2 transition-colors rounded"
+                      style={{ color: 'var(--text-muted)' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#818cf8'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+                      title="Reenviar email"
+                      disabled={resendInvite.isPending || resendSuccess === invite.id}
+                    >
+                      {resendSuccess === invite.id ? (
+                        <Check className="w-4 h-4 text-green-400" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                    </button>
                     <button
                       onClick={() => {
                         const baseUrl = window.location.origin;

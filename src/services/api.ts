@@ -183,6 +183,17 @@ export async function createPortalSession(): Promise<{ url: string }> {
   return response.data;
 }
 
+export interface RedeemPromoResult {
+  success: boolean;
+  plan: string;
+  trialEndsAt: string;
+}
+
+export async function redeemPromoCode(code: string): Promise<RedeemPromoResult> {
+  const response = await api.post<RedeemPromoResult>('/billing/redeem-promo', { code });
+  return response.data;
+}
+
 // ============================================
 // HOTELS
 // ============================================

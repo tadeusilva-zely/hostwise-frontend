@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, Settings, Clock, Tag, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
-import { getPrices, createCheckoutSession, getMe, validateCoupon, type CouponValidationResult } from '../../services/api';
+import { getPrices, createCheckoutSession, getMe, validateCoupon, redeemPromoCode, type CouponValidationResult } from '../../services/api';
 
 type PlanFeature = {
   text: string;
@@ -53,6 +53,9 @@ export function PricingPage() {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResult | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
+  const [promoRedeemed, setPromoRedeemed] = useState(false);
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: user } = useQuery({
     queryKey: ['me'],
@@ -92,10 +95,30 @@ export function PricingPage() {
     },
   });
 
+  const redeemPromoMutation = useMutation({
+    mutationFn: redeemPromoCode,
+    onSuccess: () => {
+      setPromoRedeemed(true);
+      setCouponCode('');
+      setCouponError(null);
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+      setTimeout(() => navigate('/dashboard'), 2000);
+    },
+    onError: (error: { response?: { status?: number; data?: { error?: string } } }) => {
+      // 404 = not an internal promo code, try Stripe coupon
+      if (error.response?.status === 404) {
+        validateCouponMutation.mutate(couponCode.trim());
+      } else {
+        setCouponError(error.response?.data?.error || 'Erro ao resgatar cupom.');
+      }
+    },
+  });
+
   const handleApplyCoupon = () => {
     if (!couponCode.trim()) return;
     setCouponError(null);
-    validateCouponMutation.mutate(couponCode.trim());
+    // Try internal promo code first, fallback to Stripe coupon on 404
+    redeemPromoMutation.mutate(couponCode.trim());
   };
 
   const handleRemoveCoupon = () => {
@@ -194,7 +217,21 @@ export function PricingPage() {
             <span className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Tem um cupom de desconto?</span>
           </div>
 
-          {appliedCoupon ? (
+          {promoRedeemed ? (
+            <div
+              className="flex items-center rounded-lg px-4 py-3"
+              style={{ backgroundColor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)' }}
+            >
+              <div>
+                <p className="text-sm font-semibold" style={{ color: '#10b981' }}>
+                  Cupom resgatado com sucesso!
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  Seu plano foi atualizado. Redirecionando...
+                </p>
+              </div>
+            </div>
+          ) : appliedCoupon ? (
             <div
               className="flex items-center justify-between rounded-lg px-4 py-3"
               style={{ backgroundColor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)' }}
@@ -241,7 +278,7 @@ export function PricingPage() {
                   variant="secondary"
                   size="sm"
                   onClick={handleApplyCoupon}
-                  isLoading={validateCouponMutation.isPending}
+                  isLoading={redeemPromoMutation.isPending || validateCouponMutation.isPending}
                   disabled={!couponCode.trim()}
                 >
                   Aplicar
@@ -255,7 +292,7 @@ export function PricingPage() {
         </div>
       )}
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-3 gap-6 pt-3">
         {allPlans.map((plan) => {
           const isPopular = plan.name === 'Insight';
           const isCurrentPlan = !isTrialExpired && (user?.plan === plan.name.toUpperCase() || (plan.name === 'Professional' && user?.plan === 'PRO'));
@@ -264,7 +301,7 @@ export function PricingPage() {
           return (
             <div
               key={plan.id}
-              className="relative rounded-2xl overflow-hidden"
+              className={`relative rounded-2xl ${isPopular ? 'mt-0' : ''}`}
               style={{
                 backgroundColor: 'var(--surface-card)',
                 border: isPopular
@@ -274,7 +311,7 @@ export function PricingPage() {
               }}
             >
               {isPopular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
                   <span className="text-sm font-semibold px-4 py-1 rounded-full text-white" style={{ backgroundColor: '#10b981' }}>
                     Mais Popular
                   </span>

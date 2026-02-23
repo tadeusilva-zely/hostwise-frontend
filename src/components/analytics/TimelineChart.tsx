@@ -16,63 +16,91 @@ import type { ReviewTimelinePoint } from '../../services/api';
 interface TimelineChartProps {
   points: ReviewTimelinePoint[];
   competitorPoints?: ReviewTimelinePoint[] | null;
+  range: '7d' | '30d' | '90d';
 }
 
-export function TimelineChart({ points, competitorPoints }: TimelineChartProps) {
-  const [mode, setMode] = useState<'daily' | 'trend'>('daily');
+/** Generate all dates in a range so days without reviews still appear on the axis */
+function fillDateRange(startDaysAgo: number): string[] {
+  const dates: string[] = [];
+  const now = new Date();
+  for (let i = startDaysAgo - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+  return dates;
+}
+
+export function TimelineChart({ points, competitorPoints, range }: TimelineChartProps) {
+  const [mode, setMode] = useState<'daily' | 'trend'>('trend');
   const hasCompetitor = competitorPoints !== null && competitorPoints !== undefined;
 
-  // Merge own + competitor data onto the same date axis
+  // Merge own + competitor data onto the same date axis (with gap-filling)
   const buildMergedData = (own: ReviewTimelinePoint[], comp: ReviewTimelinePoint[] | null | undefined) => {
-    const compMap = new Map(comp?.map((p) => [p.date, p]) ?? []);
-    const allDates = new Set([...own.map((p) => p.date), ...(comp?.map((p) => p.date) ?? [])]);
     const ownMap = new Map(own.map((p) => [p.date, p]));
+    const compMap = new Map(comp?.map((p) => [p.date, p]) ?? []);
 
-    return Array.from(allDates)
-      .sort()
-      .map((date) => ({
-        date: new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-        rawDate: date,
-        'Meu Hotel': ownMap.get(date)?.avgRating ?? null,
-        Concorrentes: compMap.get(date)?.avgRating ?? null,
-      }));
+    return allDatesInRange.map((date) => ({
+      date: new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      rawDate: date,
+      'Meu Hotel': ownMap.get(date)?.avgRating ?? null,
+      'Meu Hotel Count': ownMap.get(date)?.reviewCount ?? 0,
+      Concorrentes: compMap.get(date)?.avgRating ?? null,
+      'Concorrentes Count': compMap.get(date)?.reviewCount ?? 0,
+    }));
   };
 
+  // Progressive cumulative average for comparison mode
   const buildTrendData = (merged: ReturnType<typeof buildMergedData>) => {
-    return merged.map((p, i) => {
-      const window = merged.slice(Math.max(0, i - 6), i + 1);
-      const ownValues = window.map((w) => w['Meu Hotel']).filter((v): v is number => v !== null);
-      const compValues = window.map((w) => w['Concorrentes']).filter((v): v is number => v !== null);
+    let ownCumSum = 0, ownCumCount = 0;
+    let compCumSum = 0, compCumCount = 0;
+    return merged.map((p) => {
+      if (p['Meu Hotel'] !== null) {
+        ownCumSum += p['Meu Hotel'] * p['Meu Hotel Count'];
+        ownCumCount += p['Meu Hotel Count'];
+      }
+      if (p.Concorrentes !== null) {
+        compCumSum += p.Concorrentes * p['Concorrentes Count'];
+        compCumCount += p['Concorrentes Count'];
+      }
       return {
         date: p.date,
-        'Meu Hotel':
-          ownValues.length > 0
-            ? Math.round((ownValues.reduce((a, b) => a + b, 0) / ownValues.length) * 100) / 100
-            : null,
-        Concorrentes:
-          compValues.length > 0
-            ? Math.round((compValues.reduce((a, b) => a + b, 0) / compValues.length) * 100) / 100
-            : null,
+        'Meu Hotel': ownCumCount > 0 ? Math.round((ownCumSum / ownCumCount) * 100) / 100 : null,
+        Concorrentes: compCumCount > 0 ? Math.round((compCumSum / compCumCount) * 100) / 100 : null,
       };
     });
   };
 
-  // Simple (non-comparison) data
-  const dailyData = points.map((p) => ({
-    date: new Date(p.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-    Nota: p.avgRating,
-    reviewCount: p.reviewCount,
-  }));
+  // Fill all dates in the range so the axis is continuous
+  const periodDays = range === '7d' ? 7 : range === '90d' ? 90 : 30;
+  const allDatesInRange = fillDateRange(periodDays);
+  const pointsByDate = new Map(points.map((p) => [p.date, p]));
 
-  const trendData = points.map((p, i) => {
-    const window = points.slice(Math.max(0, i - 6), i + 1);
-    const movingAvg =
-      Math.round((window.reduce((sum, w) => sum + w.avgRating, 0) / window.length) * 100) / 100;
+  // Simple (non-comparison) data — with gap-filling
+  const dailyData = allDatesInRange.map((d) => {
+    const p = pointsByDate.get(d);
     return {
-      date: new Date(p.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-      Tendência: movingAvg,
+      date: new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      Nota: p?.avgRating ?? null,
+      reviewCount: p?.reviewCount ?? 0,
     };
   });
+
+  // Progressive cumulative average — each point is the average of ALL reviews from day 1 to that day
+  const trendData: { date: string; Tendência: number | null }[] = [];
+  let cumSum = 0;
+  let cumCount = 0;
+  for (const d of allDatesInRange) {
+    const p = pointsByDate.get(d);
+    if (p) {
+      cumSum += p.avgRating * p.reviewCount;
+      cumCount += p.reviewCount;
+    }
+    trendData.push({
+      date: new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      Tendência: cumCount > 0 ? Math.round((cumSum / cumCount) * 100) / 100 : null,
+    });
+  }
 
   const mergedDailyData = hasCompetitor ? buildMergedData(points, competitorPoints) : null;
   const mergedTrendData = hasCompetitor && mergedDailyData ? buildTrendData(mergedDailyData) : null;
@@ -120,7 +148,7 @@ export function TimelineChart({ points, competitorPoints }: TimelineChartProps) 
               color: mode === m ? '#fff' : 'var(--text-muted)',
             }}
           >
-            {m === 'daily' ? 'Por dia' : 'Acumulado (7d)'}
+            {m === 'daily' ? 'Por dia' : 'Acumulado'}
           </button>
         ))}
       </div>
@@ -178,7 +206,7 @@ export function TimelineChart({ points, competitorPoints }: TimelineChartProps) 
             <YAxis domain={[0, 10]} {...axisProps} />
             <Tooltip
               {...tooltipStyle}
-              formatter={(value: number) => [value.toFixed(2), 'Nota do dia']}
+              formatter={(value: number | null) => [value !== null ? value.toFixed(2) : '—', 'Nota do dia']}
             />
             <Area
               type="monotone"
@@ -187,27 +215,36 @@ export function TimelineChart({ points, competitorPoints }: TimelineChartProps) 
               fill="url(#timelineGradient)"
               strokeWidth={2.5}
               dot={false}
+              connectNulls
               activeDot={{ r: 5, fill: '#10b981', stroke: 'var(--surface-card)', strokeWidth: 2 }}
             />
           </AreaChart>
         ) : (
-          <LineChart data={trendData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <AreaChart data={trendData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
             <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#8b95b0' }} interval="preserveStartEnd" />
             <YAxis domain={[0, 10]} {...axisProps} />
             <Tooltip
               {...tooltipStyle}
-              formatter={(value: number) => [value.toFixed(2), 'Média móvel (7d)']}
+              formatter={(value: number | null) => [value !== null ? value.toFixed(2) : '—', 'Média acumulada']}
             />
-            <Line
+            <Area
               type="monotone"
               dataKey="Tendência"
               stroke="#6366f1"
+              fill="url(#trendGradient)"
               strokeWidth={2.5}
               dot={false}
+              connectNulls
               activeDot={{ r: 5, fill: '#6366f1', stroke: 'var(--surface-card)', strokeWidth: 2 }}
             />
-          </LineChart>
+          </AreaChart>
         )}
       </ResponsiveContainer>
     </div>

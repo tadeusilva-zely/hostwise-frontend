@@ -9,7 +9,9 @@ import {
   getHotels,
   getAiReviewSummary,
   getReviewResponseStats,
+  getReviewsSummary,
 } from '../../services/api';
+import { BarChart, DonutChart } from '@tremor/react';
 import { Link } from 'react-router-dom';
 import {
   Building2,
@@ -81,6 +83,13 @@ export function Dashboard() {
     queryFn: () => getReviewResponseStats(ownHotelId),
     enabled: !!dashboard,
     staleTime: 0,
+  });
+
+  const { data: reviewsSummary } = useQuery({
+    queryKey: ['reviews-summary', ownHotelId],
+    queryFn: () => getReviewsSummary(ownHotelId),
+    enabled: !!ownHotelId,
+    staleTime: 1000 * 60 * 30,
   });
 
   const handleTourCallback = useCallback(
@@ -605,6 +614,79 @@ export function Dashboard() {
               </div>
             </div>
           ) : null}
+
+          {/* ── REVIEW CHARTS ── */}
+          {reviewsSummary && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Distribuição de Sentimento</CardTitle>
+                  <CardDescription>Classificação das avaliações do seu hotel</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-8">
+                    <DonutChart
+                      className="h-40 w-40"
+                      data={[
+                        { name: 'Positivas', value: reviewsSummary.positive },
+                        { name: 'Neutras', value: reviewsSummary.neutral },
+                        { name: 'Negativas', value: reviewsSummary.negative },
+                      ]}
+                      category="value"
+                      index="name"
+                      colors={['emerald', 'amber', 'rose']}
+                      showAnimation
+                    />
+                    <div className="flex-1 space-y-3">
+                      {[
+                        { label: 'Positivas', count: reviewsSummary.positive, color: '#10b981' },
+                        { label: 'Neutras', count: reviewsSummary.neutral, color: '#f59e0b' },
+                        { label: 'Negativas', count: reviewsSummary.negative, color: '#f43f5e' },
+                      ].map(({ label, count, color }) => (
+                        <div key={label} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+                          </div>
+                          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Comparativo de Notas</CardTitle>
+                  <CardDescription>Sua nota vs média dos concorrentes</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <BarChart
+                    className="h-40"
+                    data={[
+                      { name: 'Meu Hotel', 'Nota Média': reviewsSummary.myAvgRating ?? reviewsSummary.avgRating },
+                      { name: 'Concorrentes', 'Nota Média': reviewsSummary.competitorAvgRating },
+                    ]}
+                    index="name"
+                    categories={['Nota Média']}
+                    colors={['indigo']}
+                    valueFormatter={(v) => v.toFixed(1)}
+                    showAnimation
+                  />
+                  <div className="mt-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--surface-secondary)' }}>
+                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                      {reviewsSummary.diff >= 0 ? (
+                        <>Seu hotel está <span className="font-semibold" style={{ color: '#10b981' }}>{reviewsSummary.diff} pontos acima</span> da média dos concorrentes!</>
+                      ) : (
+                        <>Seu hotel está <span className="font-semibold" style={{ color: '#ef4444' }}>{Math.abs(reviewsSummary.diff)} pontos abaixo</span> da média dos concorrentes.</>
+                      )}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* ── SECONDARY ROW: Rates + Occupancy ── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">

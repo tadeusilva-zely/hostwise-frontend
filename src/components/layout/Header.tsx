@@ -1,23 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Bell, Menu, Settings, LogOut, HelpCircle, Sun, Moon } from 'lucide-react';
 import { useTour } from '../../contexts/TourContext';
 import { cn } from '../../lib/utils';
-
-const PAGE_TITLES: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/reviews': 'Avaliações',
-  '/analytics': 'Analytics',
-  '/rates': 'Espião de Tarifas',
-  '/occupancy': 'Sensor de Lotação',
-  '/hotels': 'Meus Hotéis',
-  '/billing': 'Planos & Billing',
-  '/billing/success': 'Planos & Billing',
-  '/billing/manage': 'Planos & Billing',
-  '/settings': 'Configurações',
-};
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -27,11 +14,8 @@ export function Header({ onMenuClick }: HeaderProps) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { startTour, hasPendingTours } = useTour();
-  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  const pageTitle = PAGE_TITLES[location.pathname] || 'HostWise';
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -71,15 +55,8 @@ export function Header({ onMenuClick }: HeaderProps) {
           <Menu className="w-6 h-6" />
         </button>
 
-        {/* Page title */}
-        <div className="hidden lg:block">
-          <h1
-            className="text-xl font-semibold"
-            style={{ color: 'var(--text-primary)', fontFamily: 'Lexend, Inter, system-ui, sans-serif' }}
-          >
-            {pageTitle}
-          </h1>
-        </div>
+        {/* Spacer — title is now in page content */}
+        <div className="hidden lg:block" />
 
         {/* Right side */}
         <div className="flex items-center gap-2">

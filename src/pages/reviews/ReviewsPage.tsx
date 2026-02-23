@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -9,18 +9,16 @@ import {
   getReviews,
   getReviewsSummary,
   getHotels,
-  getAiReviewSummary,
   getReviewResponseStats,
   markReviewAnswered,
 } from '../../services/api';
-import type { ReviewWithHotel, AiReviewSummary } from '../../services/api';
+import type { ReviewWithHotel } from '../../services/api';
+import { PageHeader } from '../../components/ui/PageHeader';
 import {
   Star,
   ThumbsUp,
   ThumbsDown,
   MessageSquare,
-  TrendingUp,
-  TrendingDown,
   Building2,
   User,
   MapPin,
@@ -28,17 +26,18 @@ import {
   Loader2,
   AlertCircle,
   Sparkles,
-  RefreshCw,
   CheckCircle,
   Lock,
 } from 'lucide-react';
-import { BarChart, DonutChart } from '@tremor/react';
 import Joyride, { type CallBackProps, STATUS } from 'react-joyride';
 import { useTour } from '../../contexts/TourContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { reviewsSteps } from '../../tour/steps/reviews';
 import { TourTooltip } from '../../tour/TourTooltip';
 import { tourStyles } from '../../tour/tourStyles';
+import { Pagination } from '../../components/ui/Pagination';
+
+const PAGE_SIZE = 20;
 
 export function ReviewsPage() {
   const { user } = useAuth();
@@ -56,7 +55,28 @@ export function ReviewsPage() {
   const [selectedHotelId, setSelectedHotelId] = useState<string>(
     searchParams.get('hotelId') || 'all'
   );
+  const [page, setPage] = useState(1);
   const [smartReplyReview, setSmartReplyReview] = useState<ReviewWithHotel | null>(null);
+
+  const handleFilterChange = (newFilter: typeof filter) => {
+    setFilter(newFilter);
+    setPage(1);
+  };
+
+  const handleResponseFilterChange = (newResponseFilter: typeof responseFilter) => {
+    setResponseFilter(newResponseFilter);
+    setPage(1);
+  };
+
+  const handleHotelChange = (newHotelId: string) => {
+    setSelectedHotelId(newHotelId);
+    setPage(1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    document.getElementById('reviews-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   // Scroll to anchor if present in URL (e.g. #reviews-list)
   useEffect(() => {
@@ -115,15 +135,27 @@ export function ReviewsPage() {
     gcTime: 0,
   });
 
-  const { data: reviewsData, isLoading: reviewsLoading, isError, refetch } = useQuery({
-    queryKey: ['reviews', filter, responseFilter, selectedHotelId],
+  const effectiveLimit = maxReviews ? Math.min(PAGE_SIZE, maxReviews) : PAGE_SIZE;
+  const apiSentiment = filter !== 'all' ? filter : undefined;
+  const apiResponseStatus = responseFilter !== 'ALL' ? responseFilter : undefined;
+
+  const {
+    data: reviewsData,
+    isError,
+    refetch,
+    isFetching,
+    isPlaceholderData,
+  } = useQuery({
+    queryKey: ['reviews', selectedHotelId, filter, responseFilter, page, effectiveLimit],
     queryFn: () =>
       getReviews({
-        sentiment: filter !== 'all' ? filter : undefined,
-        responseStatus: responseFilter !== 'ALL' ? responseFilter : undefined,
-        limit: 50,
         hotelId: selectedHotelId !== 'all' ? selectedHotelId : undefined,
+        sentiment: apiSentiment,
+        responseStatus: apiResponseStatus,
+        page,
+        limit: effectiveLimit,
       }),
+    placeholderData: keepPreviousData,
     staleTime: 0,
     gcTime: 0,
   });
@@ -133,33 +165,14 @@ export function ReviewsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reviews'] });
       queryClient.invalidateQueries({ queryKey: ['reviews-response-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['reviews-summary'] });
     },
   });
 
   const ownHotels = hotelsData?.ownHotels || [];
   const competitorHotels = hotelsData?.competitorHotels || [];
-  const allHotels = [...ownHotels, ...competitorHotels];
 
-  const [aiHotelId, setAiHotelId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!aiHotelId && allHotels.length > 0) {
-      setAiHotelId(allHotels[0].id);
-    }
-  }, [allHotels.length]);
-
-  const {
-    data: aiSummary,
-    isLoading: aiLoading,
-    isError: aiError,
-  } = useQuery({
-    queryKey: ['ai-review-summary', aiHotelId],
-    queryFn: () => getAiReviewSummary(aiHotelId!),
-    enabled: !!aiHotelId,
-    staleTime: 1000 * 60 * 60,
-  });
-
-  const isLoading = summaryLoading || reviewsLoading;
+  const isLoading = summaryLoading;
 
   if (isLoading) {
     return (
@@ -197,25 +210,15 @@ export function ReviewsPage() {
     diff: 0,
   };
 
-  const allReviews = reviewsData?.reviews || [];
-  const reviews = maxReviews ? allReviews.slice(0, maxReviews) : allReviews;
-  const lockedReviews = maxReviews ? allReviews.slice(maxReviews, maxReviews + 3) : [];
-  const hasMoreReviews = maxReviews ? allReviews.length > maxReviews : false;
+  const reviews = reviewsData?.reviews ?? [];
+  const pagination = reviewsData?.pagination ?? { page: 1, limit: effectiveLimit, total: 0 };
+  const totalPages = Math.ceil(pagination.total / pagination.limit);
+  const isLimitedByPlan = maxReviews !== null && pagination.total > maxReviews;
+  const showPagination = !maxReviews;
 
-  if (mySummary.totalReviews === 0 && reviews.length === 0) {
+  if (mySummary.totalReviews === 0 && reviews.length === 0 && page === 1) {
     return <EmptyState />;
   }
-
-  const sentimentData = [
-    { name: 'Positivas', value: mySummary.positive, color: 'emerald' },
-    { name: 'Neutras', value: mySummary.neutral, color: 'amber' },
-    { name: 'Negativas', value: mySummary.negative, color: 'rose' },
-  ];
-
-  const comparisonData = [
-    { name: 'Meu Hotel', 'Nota Média': mySummary.myAvgRating },
-    { name: 'Concorrentes', 'Nota Média': mySummary.competitorAvgRating },
-  ];
 
   return (
     <div className="space-y-6">
@@ -241,30 +244,19 @@ export function ReviewsPage() {
         />
       )}
 
-      {/* Header */}
-      <div
-        data-tour="reviews-header"
-        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-      >
-        <div>
-          <h1
-            className="text-2xl font-bold"
-            style={{ color: 'var(--text-primary)', fontFamily: 'Lexend, sans-serif' }}
-          >
-            Avaliações
-          </h1>
-          <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
-            Analise e responda as avaliações do seu hotel e da concorrência
-          </p>
-        </div>
-        <div data-tour="reviews-hotel-selector">
-          <HotelSelector
-            ownHotels={ownHotels}
-            competitorHotels={competitorHotels}
-            selectedHotelId={selectedHotelId}
-            onChange={setSelectedHotelId}
-          />
-        </div>
+      <PageHeader
+        title="Avaliações"
+        description="Monitore e responda as avaliações do seu hotel em todas as plataformas."
+      />
+
+      {/* Hotel Selector */}
+      <div data-tour="reviews-hotel-selector" className="flex justify-end">
+        <HotelSelector
+          ownHotels={ownHotels}
+          competitorHotels={competitorHotels}
+          selectedHotelId={selectedHotelId}
+          onChange={handleHotelChange}
+        />
       </div>
 
       {/* Response Rate Banner */}
@@ -315,7 +307,7 @@ export function ReviewsPage() {
           {responseStats.totalPending > 0 && (
             <button
               onClick={() => {
-                setResponseFilter('PENDING');
+                handleResponseFilterChange('PENDING');
                 setTimeout(() => {
                   document.getElementById('reviews-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }, 100);
@@ -333,176 +325,77 @@ export function ReviewsPage() {
         </div>
       )}
 
-      {/* Summary Cards */}
-      <div
-        data-tour="reviews-summary"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
-      >
+      {/* Sentiment Cards */}
+      <div className="grid grid-cols-3 gap-3">
         {[
           {
-            value: mySummary.avgRating,
-            label: 'Nota Média',
-            icon: Star,
-            bg: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-            iconColor: 'white',
-            valueColor: 'var(--text-primary)',
-          },
-          {
-            value: mySummary.positive,
+            value: 'positive' as const,
             label: 'Positivas',
+            count: mySummary.positive,
+            color: '#10b981',
+            bg: 'rgba(16,185,129,0.08)',
+            border: 'rgba(16,185,129,0.2)',
+            activeBorder: '#10b981',
             icon: ThumbsUp,
-            bg: 'rgba(16,185,129,0.12)',
-            iconColor: '#10b981',
-            valueColor: 'var(--text-primary)',
           },
           {
-            value: mySummary.negative,
+            value: 'neutral' as const,
+            label: 'Neutras',
+            count: mySummary.neutral,
+            color: '#f59e0b',
+            bg: 'rgba(245,158,11,0.08)',
+            border: 'rgba(245,158,11,0.2)',
+            activeBorder: '#f59e0b',
+            icon: MessageSquare,
+          },
+          {
+            value: 'negative' as const,
             label: 'Negativas',
+            count: mySummary.negative,
+            color: '#ef4444',
+            bg: 'rgba(239,68,68,0.08)',
+            border: 'rgba(239,68,68,0.2)',
+            activeBorder: '#ef4444',
             icon: ThumbsDown,
-            bg: 'rgba(239,68,68,0.12)',
-            iconColor: '#ef4444',
-            valueColor: 'var(--text-primary)',
           },
-          {
-            value: `${mySummary.diff >= 0 ? '+' : ''}${mySummary.diff}`,
-            label: 'vs Concorrentes',
-            icon: mySummary.diff >= 0 ? TrendingUp : TrendingDown,
-            bg: mySummary.diff >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
-            iconColor: mySummary.diff >= 0 ? '#10b981' : '#ef4444',
-            valueColor: mySummary.diff >= 0 ? '#10b981' : '#ef4444',
-          },
-        ].map(({ value, label, icon: Icon, bg, iconColor, valueColor }) => (
-          <Card key={label}>
-            <CardContent className="flex items-center gap-4 py-5">
-              <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: bg }}
-              >
-                <Icon className="w-6 h-6" style={{ color: iconColor }} />
-              </div>
-              <div>
-                <p
-                  className="text-2xl font-bold"
-                  style={{ color: valueColor, fontFamily: 'Lexend, sans-serif' }}
+        ].map((s) => {
+          const Icon = s.icon;
+          const isActive = filter === s.value;
+          return (
+            <button
+              key={s.value}
+              onClick={() => {
+                handleFilterChange(isActive ? 'all' : s.value);
+              }}
+              className="rounded-2xl p-4 text-left transition-all duration-200 w-full"
+              style={{
+                background: isActive ? s.bg : 'var(--surface-card)',
+                border: `1px solid ${isActive ? s.activeBorder : 'var(--surface-border)'}`,
+                boxShadow: isActive ? `0 0 0 1px ${s.activeBorder}` : 'none',
+              }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: s.bg }}
                 >
-                  {value}
-                </p>
-                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                  {label}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div data-tour="reviews-sentiment-chart">
-          <Card>
-            <CardHeader>
-              <CardTitle>Distribuição de Sentimento</CardTitle>
-              <CardDescription>Classificação das avaliações do seu hotel</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-8">
-                <DonutChart
-                  className="h-48 w-48"
-                  data={sentimentData}
-                  category="value"
-                  index="name"
-                  colors={['emerald', 'amber', 'rose']}
-                  showAnimation
-                />
-                <div className="flex-1 space-y-3">
-                  {[
-                    { label: 'Positivas', count: mySummary.positive, color: '#10b981' },
-                    { label: 'Neutras', count: mySummary.neutral, color: '#f59e0b' },
-                    { label: 'Negativas', count: mySummary.negative, color: '#f43f5e' },
-                  ].map(({ label, count, color }) => (
-                    <div key={label} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-                        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                          {label}
-                        </span>
-                      </div>
-                      <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        {count}
-                      </span>
-                    </div>
-                  ))}
+                  <Icon className="w-4 h-4" style={{ color: s.color }} />
                 </div>
+                {isActive && (
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: s.bg, color: s.color }}>
+                    ativo
+                  </span>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div data-tour="reviews-comparison-chart">
-          <Card>
-            <CardHeader>
-              <CardTitle>Comparativo de Notas</CardTitle>
-              <CardDescription>Sua nota vs média dos concorrentes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <BarChart
-                className="h-48"
-                data={comparisonData}
-                index="name"
-                categories={['Nota Média']}
-                colors={['indigo']}
-                valueFormatter={(value) => value.toFixed(1)}
-                showAnimation
-              />
-              <div
-                className="mt-4 p-3 rounded-xl"
-                style={{ backgroundColor: 'var(--surface-secondary)' }}
-              >
-                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  {mySummary.diff >= 0 ? (
-                    <>
-                      Seu hotel está{' '}
-                      <span className="font-semibold" style={{ color: '#10b981' }}>
-                        {mySummary.diff} pontos acima
-                      </span>{' '}
-                      da média dos concorrentes!
-                    </>
-                  ) : (
-                    <>
-                      Seu hotel está{' '}
-                      <span className="font-semibold" style={{ color: '#ef4444' }}>
-                        {Math.abs(mySummary.diff)} pontos abaixo
-                      </span>{' '}
-                      da média dos concorrentes.
-                    </>
-                  )}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* AI Summary */}
-      <div data-tour="reviews-ai-summary">
-        <AiSummaryCard
-          summary={aiSummary}
-          isLoading={aiLoading}
-          isError={aiError}
-          isLocked={!!maxReviews}
-          hotels={allHotels.map((h) => ({ id: h.id, name: h.name, isOwn: h.isOwn }))}
-          selectedHotelId={aiHotelId}
-          onHotelChange={setAiHotelId}
-          onRefresh={() => {
-            if (aiHotelId) {
-              queryClient.removeQueries({ queryKey: ['ai-review-summary', aiHotelId] });
-              queryClient.fetchQuery({
-                queryKey: ['ai-review-summary', aiHotelId],
-                queryFn: () => getAiReviewSummary(aiHotelId, true),
-              });
-            }
-          }}
-        />
+              <p className="text-2xl font-bold" style={{ color: isActive ? s.color : 'var(--text-primary)' }}>
+                {s.count}
+              </p>
+              <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                {s.label}
+              </p>
+            </button>
+          );
+        })}
       </div>
 
       {/* Reviews List */}
@@ -512,43 +405,14 @@ export function ReviewsPage() {
             <div>
               <CardTitle>Avaliações Recentes</CardTitle>
               <CardDescription>
-                {reviewsData?.pagination?.total
-                  ? `${reviewsData.pagination.total} avaliações`
+                {pagination.total > 0
+                  ? `${pagination.total} avaliações`
                   : 'Últimas avaliações recebidas'}
               </CardDescription>
             </div>
 
-            {/* Dual filter bar */}
-            <div className="flex flex-col gap-2 mt-4">
-              <div
-                className="flex rounded-xl p-1 gap-1"
-                style={{ backgroundColor: 'var(--surface-secondary)' }}
-              >
-                {[
-                  { value: 'all', label: 'Todas' },
-                  { value: 'positive', label: 'Positivas' },
-                  { value: 'neutral', label: 'Neutras' },
-                  { value: 'negative', label: 'Negativas' },
-                ].map((f) => (
-                  <button
-                    key={f.value}
-                    onClick={() => setFilter(f.value as typeof filter)}
-                    className="flex-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-150"
-                    style={
-                      filter === f.value
-                        ? {
-                            backgroundColor: 'var(--surface-card)',
-                            color: 'var(--text-primary)',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                          }
-                        : { color: 'var(--text-muted)' }
-                    }
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-
+            {/* Status filter bar */}
+            <div className="mt-4">
               <div
                 className="flex rounded-xl p-1 gap-1"
                 style={{ backgroundColor: 'var(--surface-secondary)' }}
@@ -560,7 +424,7 @@ export function ReviewsPage() {
                 ].map((f) => (
                   <button
                     key={f.value}
-                    onClick={() => setResponseFilter(f.value as typeof responseFilter)}
+                    onClick={() => handleResponseFilterChange(f.value as typeof responseFilter)}
                     className="flex-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-150"
                     style={
                       responseFilter === f.value
@@ -580,7 +444,10 @@ export function ReviewsPage() {
           </CardHeader>
 
           <CardContent>
-            <div className="space-y-3">
+            <div
+              className="space-y-3 transition-opacity duration-200"
+              style={{ opacity: isFetching && isPlaceholderData ? 0.6 : 1 }}
+            >
               {reviews.map((review) => (
                 <ReviewCard
                   key={review.id}
@@ -592,24 +459,24 @@ export function ReviewsPage() {
                 />
               ))}
 
-              {reviews.length === 0 && (
+              {reviews.length === 0 && !isFetching && (
                 <div className="text-center py-10" style={{ color: 'var(--text-muted)' }}>
                   Nenhuma avaliação encontrada com este filtro.
                 </div>
               )}
             </div>
 
-            {hasMoreReviews && (
+            {isLimitedByPlan && (
               <div className="relative mt-4">
                 <div className="blur-sm pointer-events-none select-none space-y-3">
-                  {lockedReviews.map((review) => (
-                    <ReviewCard
-                      key={review.id}
-                      review={review}
-                      canSmartReply={false}
-                      onMarkAnswered={() => {}}
-                      onSmartReply={() => {}}
-                      isMarkingAnswered={false}
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="rounded-2xl p-4 h-32"
+                      style={{
+                        backgroundColor: 'var(--surface-secondary)',
+                        border: '1px solid var(--surface-border)',
+                      }}
                     />
                   ))}
                 </div>
@@ -624,7 +491,7 @@ export function ReviewsPage() {
                     Ver todas as avaliações requer upgrade
                   </p>
                   <p className="text-xs mt-1 mb-3" style={{ color: 'var(--text-muted)' }}>
-                    O plano Starter exibe apenas as últimas 10 avaliações
+                    O plano Starter exibe apenas as últimas {maxReviews} avaliações
                   </p>
                   <Link to="/billing">
                     <Button size="sm" variant="primary">
@@ -632,6 +499,17 @@ export function ReviewsPage() {
                     </Button>
                   </Link>
                 </div>
+              </div>
+            )}
+
+            {showPagination && totalPages > 1 && (
+              <div className="mt-6 flex justify-center">
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                  isLoading={isFetching}
+                />
               </div>
             )}
           </CardContent>
@@ -812,226 +690,6 @@ function ReviewCard({
   );
 }
 
-function AiSummaryCard({
-  summary,
-  isLoading,
-  isError,
-  isLocked,
-  hotels,
-  selectedHotelId,
-  onHotelChange,
-  onRefresh,
-}: {
-  summary: AiReviewSummary | undefined;
-  isLoading: boolean;
-  isError: boolean;
-  isLocked: boolean;
-  hotels: Array<{ id: string; name: string; isOwn: boolean }>;
-  selectedHotelId: string | null;
-  onHotelChange: (hotelId: string) => void;
-  onRefresh: () => void;
-}) {
-  if (isLocked) {
-    return (
-      <Card className="relative overflow-hidden">
-        <div className="blur-sm pointer-events-none select-none">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
-              >
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <CardTitle>Resumo IA</CardTitle>
-                <CardDescription>Análise inteligente das avaliações</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="h-4 rounded w-3/4" style={{ backgroundColor: 'var(--surface-border)' }} />
-              <div className="h-4 rounded w-full" style={{ backgroundColor: 'var(--surface-border)' }} />
-              <div className="h-4 rounded w-5/6" style={{ backgroundColor: 'var(--surface-border)' }} />
-            </div>
-          </CardContent>
-        </div>
-        <div
-          className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl"
-          style={{ backgroundColor: 'rgba(30,35,55,0.92)' }}
-        >
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
-            style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
-          >
-            <Sparkles className="w-6 h-6 text-white" />
-          </div>
-          <p className="font-semibold text-base mb-1" style={{ color: 'var(--text-primary)' }}>
-            Análise IA de Avaliações
-          </p>
-          <p className="text-sm mb-4 text-center max-w-xs" style={{ color: 'var(--text-muted)' }}>
-            Disponível a partir do plano Insight — resumo automático, pontos fortes e fracos.
-          </p>
-          <Link to="/billing">
-            <Button variant="primary" size="sm">
-              Ver planos e fazer upgrade
-            </Button>
-          </Link>
-        </div>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
-            >
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <CardTitle>Resumo IA</CardTitle>
-              <CardDescription>Análise inteligente das avaliações</CardDescription>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedHotelId || ''}
-              onChange={(e) => onHotelChange(e.target.value)}
-              className="rounded-lg px-3 py-1.5 text-sm focus:outline-none"
-              style={{
-                backgroundColor: 'var(--surface-secondary)',
-                border: '1px solid var(--surface-border)',
-                color: 'var(--text-primary)',
-              }}
-            >
-              {hotels.map((h) => (
-                <option key={h.id} value={h.id}>
-                  {h.name}
-                  {h.isOwn ? ' (Meu Hotel)' : ''}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={onRefresh}
-              className="p-2 rounded-lg transition-colors"
-              style={{ color: 'var(--text-muted)' }}
-              title="Gerar novo resumo"
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-card)';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = '';
-              }}
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {isLoading && (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-primary)' }} />
-            <span className="ml-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-              Analisando avaliações com IA...
-            </span>
-          </div>
-        )}
-
-        {isError && !isLoading && (
-          <div className="text-center py-6" style={{ color: 'var(--text-muted)' }}>
-            <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
-            <p className="text-sm">Não foi possível gerar o resumo IA.</p>
-          </div>
-        )}
-
-        {summary && !isLoading && (
-          <div className="space-y-4">
-            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              {summary.summary}
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div
-                className="p-4 rounded-xl"
-                style={{
-                  backgroundColor: 'rgba(16,185,129,0.08)',
-                  border: '1px solid rgba(16,185,129,0.15)',
-                }}
-              >
-                <h4
-                  className="text-sm font-semibold mb-2 flex items-center gap-1"
-                  style={{ color: '#10b981' }}
-                >
-                  <ThumbsUp className="w-4 h-4" />
-                  Pontos Fortes
-                </h4>
-                <ul className="space-y-1">
-                  {summary.strengths.map((s, i) => (
-                    <li key={i} className="text-sm flex items-start gap-2" style={{ color: 'var(--text-secondary)' }}>
-                      <span style={{ color: '#10b981', marginTop: '2px', flexShrink: 0 }}>+</span>
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div
-                className="p-4 rounded-xl"
-                style={{
-                  backgroundColor: 'rgba(239,68,68,0.08)',
-                  border: '1px solid rgba(239,68,68,0.15)',
-                }}
-              >
-                <h4
-                  className="text-sm font-semibold mb-2 flex items-center gap-1"
-                  style={{ color: '#ef4444' }}
-                >
-                  <ThumbsDown className="w-4 h-4" />
-                  Pontos Fracos
-                </h4>
-                <ul className="space-y-1">
-                  {summary.weaknesses.map((w, i) => (
-                    <li key={i} className="text-sm flex items-start gap-2" style={{ color: 'var(--text-secondary)' }}>
-                      <span style={{ color: '#ef4444', marginTop: '2px', flexShrink: 0 }}>-</span>
-                      {w}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            {summary.trendInsight && (
-              <div
-                className="p-3 rounded-xl"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(79,70,229,0.08), rgba(124,58,237,0.06))',
-                  border: '1px solid rgba(79,70,229,0.15)',
-                }}
-              >
-                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  <span className="font-semibold" style={{ color: '#818cf8' }}>Insight: </span>
-                  {summary.trendInsight}
-                </p>
-              </div>
-            )}
-
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Baseado em {summary.reviewCount} avaliações. Gerado em{' '}
-              {new Date(summary.generatedAt).toLocaleDateString('pt-BR')}.
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 function EmptyState() {
   return (

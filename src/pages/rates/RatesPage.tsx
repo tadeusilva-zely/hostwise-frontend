@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import { Button } from '../../components/ui/Button';
 import { HotelSelector } from '../../components/ui/HotelSelector';
 import { getRatesComparison, getHotels } from '../../services/api';
+import { PageHeader } from '../../components/ui/PageHeader';
 import {
   DollarSign,
   TrendingUp,
@@ -130,12 +131,6 @@ export function RatesPage() {
   if (realRates.length === 0) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)', fontFamily: "'Lexend', sans-serif" }}>
-            Espião de Tarifas
-          </h1>
-          <p className="mt-1" style={{ color: 'var(--text-muted)' }}>Compare seus preços com a concorrência</p>
-        </div>
         <Card>
           <CardContent className="text-center py-12">
             <DollarSign className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
@@ -175,17 +170,13 @@ export function RatesPage() {
         callback={handleTourCallback}
       />
 
-      {/* Header */}
-      <div data-tour="rates-header" className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)', fontFamily: "'Lexend', sans-serif" }}>
-            Espião de Tarifas
-          </h1>
-          <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
-            Compare seus preços com a concorrência
-          </p>
-        </div>
+      <PageHeader
+        title="Espião de Tarifas"
+        description="Compare seus preços com a concorrência e identifique oportunidades."
+      />
 
+      {/* Header */}
+      <div data-tour="rates-header" className="flex items-center justify-end">
         <div className="flex items-center gap-4">
           <HotelSelector
             ownHotels={hotelsData?.ownHotels || []}

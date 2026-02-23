@@ -11,6 +11,7 @@ import {
   searchHotelsInLocationApi,
 } from '../../services/api';
 import type { Hotel, HotelSearchResult, LocationSearchResult, HotelInLocationResult } from '../../services/api';
+import { PageHeader } from '../../components/ui/PageHeader';
 import {
   Building2,
   Plus,
@@ -102,16 +103,13 @@ export function HotelsPage() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Meus Hotéis"
+        description="Gerencie seu hotel e os concorrentes que você monitora."
+      />
+
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)', fontFamily: "'Lexend', sans-serif" }}>
-            Meus Hoteis
-          </h1>
-          <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
-            Gerencie seus hoteis e concorrentes monitorados
-          </p>
-        </div>
+      <div className="flex items-center justify-end">
         <Button variant="primary" onClick={() => setIsModalOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Adicionar Hotel

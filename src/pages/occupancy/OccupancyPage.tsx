@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { HotelSelector } from '../../components/ui/HotelSelector';
 import { getOccupancy, getHotels } from '../../services/api';
 import type { OccupancyDay } from '../../services/api';
+import { PageHeader } from '../../components/ui/PageHeader';
 import {
   TrendingUp,
   TrendingDown,
@@ -147,16 +148,13 @@ export function OccupancyPage() {
         callback={handleTourCallback}
       />
 
+      <PageHeader
+        title="Sensor de Lotação"
+        description="Acompanhe a taxa de ocupação e descubra os melhores dias para otimizar receita."
+      />
+
       {/* Header */}
-      <div data-tour="occupancy-header" className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)', fontFamily: "'Lexend', sans-serif" }}>
-            Sensor de Lotação
-          </h1>
-          <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
-            Previsão de ocupação estimada para os próximos 30 dias (D+30)
-          </p>
-        </div>
+      <div data-tour="occupancy-header" className="flex items-center justify-end">
         <HotelSelector
           ownHotels={hotelsData?.ownHotels || []}
           competitorHotels={hotelsData?.competitorHotels || []}

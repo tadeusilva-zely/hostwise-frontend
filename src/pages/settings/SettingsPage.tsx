@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { User, Bell, Shield, Users, Copy, Trash2, Loader2, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getTeamMembers, getInvitations, createInvitationApi, revokeInvitationApi } from '../../services/api';
@@ -14,14 +15,10 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)', fontFamily: "'Lexend', sans-serif" }}>
-          Configurações
-        </h1>
-        <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
-          Gerencie sua conta e preferências.
-        </p>
-      </div>
+      <PageHeader
+        title="Configurações"
+        description="Gerencie seu perfil, equipe e preferências de notificação."
+      />
 
       {/* Profile */}
       <Card>

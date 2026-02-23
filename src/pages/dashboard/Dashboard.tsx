@@ -203,7 +203,7 @@ export function Dashboard() {
             continuar monitorando avaliações, tarifas e ocupação do seu hotel.
           </p>
 
-          <div className="grid grid-cols-3 gap-3 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
             {[
               { icon: Star, label: 'Avaliações', color: '#10b981' },
               { icon: DollarSign, label: 'Espião de Tarifas', color: '#4f46e5' },

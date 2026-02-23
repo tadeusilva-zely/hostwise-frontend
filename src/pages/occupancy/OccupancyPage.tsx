@@ -328,8 +328,8 @@ export function OccupancyPage() {
             <CardDescription>Ocupação diária estimada — D+30</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="relative">
-              <div className="grid grid-cols-7 gap-2">
+            <div className="relative overflow-x-auto">
+              <div className="grid grid-cols-7 gap-1 min-w-[320px]">
                 {/* Week day headers */}
                 {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map(day => (
                   <div key={day} className="text-center text-sm font-medium py-2" style={{ color: 'var(--text-muted)' }}>

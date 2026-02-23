@@ -206,7 +206,7 @@ export function TimelineChart({ points, competitorPoints, range }: TimelineChart
             <YAxis domain={[0, 10]} {...axisProps} />
             <Tooltip
               {...tooltipStyle}
-              formatter={(value: number | null) => [value !== null ? value.toFixed(2) : '—', 'Nota do dia']}
+              formatter={(value: number | string) => [typeof value === 'number' ? value.toFixed(2) : '—', 'Nota do dia']}
             />
             <Area
               type="monotone"
@@ -232,7 +232,7 @@ export function TimelineChart({ points, competitorPoints, range }: TimelineChart
             <YAxis domain={[0, 10]} {...axisProps} />
             <Tooltip
               {...tooltipStyle}
-              formatter={(value: number | null) => [value !== null ? value.toFixed(2) : '—', 'Média acumulada']}
+              formatter={(value: number | string) => [typeof value === 'number' ? value.toFixed(2) : '—', 'Média acumulada']}
             />
             <Area
               type="monotone"

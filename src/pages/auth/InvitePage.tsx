@@ -29,7 +29,6 @@ export function InvitePage() {
       return;
     }
 
-    // Logout current user if any, so the invite creates a fresh account
     logout();
 
     validateInvitation(token)
@@ -84,7 +83,6 @@ export function InvitePage() {
         phone: form.phone || undefined,
       });
 
-      // Store token and redirect
       localStorage.setItem('hw_token', result.token);
       window.location.href = '/dashboard';
     } catch (err: any) {
@@ -95,12 +93,17 @@ export function InvitePage() {
     }
   };
 
+  const cardStyle: React.CSSProperties = {
+    backgroundColor: 'var(--surface-card)',
+    border: '1px solid var(--surface-border)',
+  };
+
   if (validating) {
     return (
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
-          <Loader2 className="w-8 h-8 text-hw-purple animate-spin mx-auto mb-4" />
-          <p className="text-hw-navy-600">Validando convite...</p>
+        <div className="rounded-2xl shadow-2xl p-8 text-center" style={cardStyle}>
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" style={{ color: '#818cf8' }} />
+          <p style={{ color: 'var(--text-secondary)' }}>Validando convite...</p>
         </div>
       </div>
     );
@@ -109,16 +112,15 @@ export function InvitePage() {
   if (invalidToken) {
     return (
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+        <div className="rounded-2xl shadow-2xl p-8 text-center" style={cardStyle}>
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-hw-navy-900 mb-2">Convite invalido</h1>
-          <p className="text-hw-navy-500 mb-6">
+          <h1 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)', fontFamily: "'Lexend', sans-serif" }}>
+            Convite invalido
+          </h1>
+          <p className="mb-6" style={{ color: 'var(--text-muted)' }}>
             Este link de convite expirou ou ja foi utilizado.
           </p>
-          <Link
-            to="/login"
-            className="inline-block btn-primary px-6 py-2"
-          >
+          <Link to="/login" className="inline-block btn-primary px-6 py-2">
             Ir para Login
           </Link>
         </div>
@@ -128,38 +130,44 @@ export function InvitePage() {
 
   return (
     <div className="w-full max-w-md">
-      <div className="bg-white rounded-2xl shadow-xl p-8">
+      <div className="rounded-2xl shadow-2xl p-8" style={cardStyle}>
         <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-hw-purple-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <UserPlus className="w-7 h-7 text-hw-purple" />
+          <div
+            className="w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-4"
+            style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+          >
+            <UserPlus className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-hw-navy-900">Aceitar Convite</h1>
-          <p className="text-hw-navy-500 mt-1">
-            Voce foi convidado para <span className="font-semibold text-hw-navy-700">{inviteData?.organizationName}</span>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)', fontFamily: "'Lexend', sans-serif" }}>
+            Aceitar Convite
+          </h1>
+          <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
+            Voce foi convidado para{' '}
+            <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>{inviteData?.organizationName}</span>
           </p>
         </div>
 
         {error && (
-          <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+          <div className="mb-6 p-3 rounded-lg text-sm" style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-hw-navy-700 mb-1.5">
+            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
               Email
             </label>
             <input
               type="email"
               value={inviteData?.email || ''}
               disabled
-              className="input bg-hw-navy-50 text-hw-navy-500"
+              className="input opacity-60"
             />
           </div>
 
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-hw-navy-700 mb-1.5">
+            <label htmlFor="name" className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
               Nome *
             </label>
             <input
@@ -174,7 +182,7 @@ export function InvitePage() {
           </div>
 
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-hw-navy-700 mb-1.5">
+            <label htmlFor="phone" className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
               Telefone
             </label>
             <input
@@ -188,7 +196,7 @@ export function InvitePage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-hw-navy-700 mb-1.5">
+            <label htmlFor="password" className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
               Senha *
             </label>
             <div className="relative">
@@ -205,7 +213,10 @@ export function InvitePage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-hw-navy-400 hover:text-hw-navy-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -213,7 +224,7 @@ export function InvitePage() {
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-hw-navy-700 mb-1.5">
+            <label htmlFor="confirmPassword" className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
               Confirmar Senha *
             </label>
             <input

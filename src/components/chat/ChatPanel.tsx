@@ -10,7 +10,6 @@ import {
   Building2,
   ArrowRight,
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
 import { ChatMessage, TypingIndicator } from './ChatMessage';
 import { ChatUsageBadge } from './ChatUsageBadge';
 import { CreditPurchaseModal } from './CreditPurchaseModal';
@@ -95,35 +94,47 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
 
   if (!isOpen) return null;
 
+  const iconBtnStyle: React.CSSProperties = { color: 'var(--text-muted)' };
+
   return (
     <>
       {/* Panel */}
       <div
-        className={cn(
-          'fixed z-50 bg-white flex flex-col shadow-2xl',
-          // Mobile: fullscreen
-          'inset-0',
-          // Desktop: anchored panel
-          'lg:inset-auto lg:bottom-24 lg:right-6 lg:w-[400px] lg:h-[600px] lg:rounded-2xl lg:border lg:border-hw-navy-200',
-        )}
+        className="fixed z-50 flex flex-col shadow-2xl inset-0 lg:inset-auto lg:bottom-24 lg:right-6 lg:w-[400px] lg:h-[600px] lg:rounded-2xl"
+        style={{
+          backgroundColor: 'var(--surface-card)',
+          border: '1px solid var(--surface-border)',
+        }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-hw-navy-100 bg-white lg:rounded-t-2xl">
+        <div
+          className="flex items-center justify-between px-4 py-3 lg:rounded-t-2xl"
+          style={{
+            borderBottom: '1px solid var(--surface-border)',
+            backgroundColor: 'var(--surface-card)',
+          }}
+        >
           <div className="flex items-center gap-3">
             {showHistory ? (
               <button
                 onClick={() => setShowHistory(false)}
-                className="p-1 hover:bg-hw-navy-100 rounded-lg transition-colors"
+                className="p-1 rounded-lg transition-colors"
+                style={iconBtnStyle}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-secondary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'; }}
               >
-                <ChevronLeft className="w-5 h-5 text-hw-navy-600" />
+                <ChevronLeft className="w-5 h-5" />
               </button>
             ) : (
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-hw-purple to-indigo-600 flex items-center justify-center">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+              >
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
             )}
             <div>
-              <h3 className="font-semibold text-hw-navy-900 text-sm">
+              <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
                 {showHistory ? 'Conversas' : 'HostWise AI'}
               </h3>
               {!showHistory && <ChatUsageBadge usage={usage} compact />}
@@ -134,25 +145,34 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
               <>
                 <button
                   onClick={() => setShowHistory(true)}
-                  className="p-2 hover:bg-hw-navy-100 rounded-lg transition-colors"
+                  className="p-2 rounded-lg transition-colors"
+                  style={iconBtnStyle}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-secondary)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'; }}
                   title="Conversas anteriores"
                 >
-                  <MessageSquare className="w-4 h-4 text-hw-navy-500" />
+                  <MessageSquare className="w-4 h-4" />
                 </button>
                 <button
                   onClick={startNewConversation}
-                  className="p-2 hover:bg-hw-navy-100 rounded-lg transition-colors"
+                  className="p-2 rounded-lg transition-colors"
+                  style={iconBtnStyle}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-secondary)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'; }}
                   title="Nova conversa"
                 >
-                  <Plus className="w-4 h-4 text-hw-navy-500" />
+                  <Plus className="w-4 h-4" />
                 </button>
               </>
             )}
             <button
               onClick={onClose}
-              className="p-2 hover:bg-hw-navy-100 rounded-lg transition-colors"
+              className="p-2 rounded-lg transition-colors"
+              style={iconBtnStyle}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-secondary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'; }}
             >
-              <X className="w-4 h-4 text-hw-navy-500" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -163,9 +183,9 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
           <div className="flex-1 overflow-y-auto">
             {conversations.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                <MessageSquare className="w-10 h-10 text-hw-navy-300 mb-3" />
-                <p className="text-sm text-hw-navy-500">Nenhuma conversa ainda</p>
-                <p className="text-xs text-hw-navy-400 mt-1">
+                <MessageSquare className="w-10 h-10 mb-3" style={{ color: 'var(--text-muted)' }} />
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhuma conversa ainda</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
                   Comece perguntando sobre seu hotel!
                 </p>
               </div>
@@ -199,13 +219,18 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
 
                   return Object.entries(grouped).map(([dateLabel, convs]) => (
                     <div key={dateLabel}>
-                      <p className="text-[10px] font-medium text-hw-navy-400 uppercase tracking-wider text-center py-2">
+                      <p
+                        className="text-[10px] font-medium uppercase tracking-wider text-center py-2"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
                         {dateLabel}
                       </p>
                       {convs.map((conv) => (
                         <div
                           key={conv.id}
-                          className="flex items-center gap-2 p-3 rounded-xl hover:bg-hw-navy-50 transition-colors cursor-pointer group"
+                          className="flex items-center gap-2 p-3 rounded-xl transition-colors cursor-pointer group"
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-secondary)'; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'; }}
                         >
                           <div
                             className="flex-1 min-w-0"
@@ -214,11 +239,11 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                               setShowHistory(false);
                             }}
                           >
-                            <p className="text-sm font-medium text-hw-navy-900 truncate">
+                            <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
                               {conv.title || 'Conversa sem título'}
                             </p>
                             {conv.lastMessage && (
-                              <p className="text-xs text-hw-navy-500 truncate mt-0.5">
+                              <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>
                                 {conv.lastMessage}
                               </p>
                             )}
@@ -230,7 +255,9 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                                 deleteConversation(conv.id);
                               }
                             }}
-                            className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all"
+                            className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(239,68,68,0.1)'; }}
+                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'; }}
                           >
                             <Trash2 className="w-3.5 h-3.5 text-red-400" />
                           </button>
@@ -250,19 +277,23 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                 !hasHotels ? (
                   /* No Hotels CTA */
                   <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                    <div className="w-14 h-14 rounded-2xl bg-hw-purple-100 flex items-center justify-center mb-4">
-                      <Building2 className="w-7 h-7 text-hw-purple" />
+                    <div
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
+                      style={{ background: 'linear-gradient(135deg, rgba(79,70,229,0.2), rgba(124,58,237,0.2))' }}
+                    >
+                      <Building2 className="w-7 h-7" style={{ color: '#818cf8' }} />
                     </div>
-                    <h4 className="font-semibold text-hw-navy-900 mb-1">
+                    <h4 className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
                       Cadastre seu hotel primeiro
                     </h4>
-                    <p className="text-xs text-hw-navy-500 mb-5 max-w-[250px]">
+                    <p className="text-xs mb-5 max-w-[250px]" style={{ color: 'var(--text-muted)' }}>
                       Para usar o chat IA, você precisa ter pelo menos um hotel cadastrado. A IA usa os dados do seu hotel para responder suas perguntas.
                     </p>
                     <Link
                       to="/hotels"
                       onClick={onClose}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-hw-purple text-white text-sm font-medium rounded-xl hover:bg-hw-purple-600 transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-colors text-white"
+                      style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
                     >
                       <Building2 className="w-4 h-4" />
                       Cadastrar Meu Hotel
@@ -272,13 +303,16 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                 ) : (
                 /* Empty State with Suggestions */
                 <div className="flex flex-col items-center justify-center h-full text-center">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-hw-purple to-indigo-600 flex items-center justify-center mb-4">
+                  <div
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
+                    style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+                  >
                     <Sparkles className="w-7 h-7 text-white" />
                   </div>
-                  <h4 className="font-semibold text-hw-navy-900 mb-1">
+                  <h4 className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
                     Como posso ajudar?
                   </h4>
-                  <p className="text-xs text-hw-navy-500 mb-5 max-w-[250px]">
+                  <p className="text-xs mb-5 max-w-[250px]" style={{ color: 'var(--text-muted)' }}>
                     Pergunte sobre tarifas, avaliações, ocupação ou concorrentes do seu hotel.
                   </p>
                   <div className="w-full space-y-2 overflow-x-auto lg:overflow-visible">
@@ -288,7 +322,14 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                           key={suggestion}
                           onClick={() => handleSuggestion(suggestion)}
                           disabled={quotaExhausted || false}
-                          className="flex-shrink-0 text-xs text-hw-purple bg-hw-purple-50 hover:bg-hw-purple-100 border border-hw-purple-200 rounded-full px-3 py-1.5 transition-colors whitespace-nowrap disabled:opacity-50"
+                          className="flex-shrink-0 text-xs rounded-full px-3 py-1.5 transition-colors whitespace-nowrap disabled:opacity-50"
+                          style={{
+                            color: '#818cf8',
+                            backgroundColor: 'rgba(79,70,229,0.1)',
+                            border: '1px solid rgba(79,70,229,0.3)',
+                          }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(79,70,229,0.2)'; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(79,70,229,0.1)'; }}
                         >
                           {suggestion}
                         </button>
@@ -317,11 +358,18 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
             )}
 
             {/* Input Area */}
-            <div className="border-t border-hw-navy-200 px-4 pt-4 pb-[env(safe-area-inset-bottom,16px)] lg:pb-5 bg-hw-navy-50 lg:rounded-b-2xl">
+            <div
+              className="px-4 pt-4 pb-[env(safe-area-inset-bottom,16px)] lg:pb-5 lg:rounded-b-2xl"
+              style={{
+                borderTop: '1px solid var(--surface-border)',
+                backgroundColor: 'var(--surface-secondary)',
+              }}
+            >
               {quotaExhausted ? (
                 <button
                   onClick={() => setShowCreditModal(true)}
-                  className="w-full py-3 bg-gradient-to-r from-hw-purple to-indigo-600 text-white text-sm font-medium rounded-xl hover:opacity-90 transition-opacity"
+                  className="w-full py-3 text-white text-sm font-medium rounded-xl hover:opacity-90 transition-opacity"
+                  style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
                 >
                   Comprar mais mensagens
                 </button>
@@ -334,12 +382,18 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                     onKeyDown={handleKeyDown}
                     placeholder="Pergunte sobre seu hotel..."
                     rows={1}
-                    className="flex-1 resize-none border border-hw-navy-200 rounded-xl px-3 py-2.5 text-sm text-hw-navy-900 placeholder:text-hw-navy-400 focus:outline-none focus:border-hw-purple focus:ring-1 focus:ring-hw-purple max-h-[120px]"
+                    className="flex-1 resize-none rounded-xl px-3 py-2.5 text-sm focus:outline-none max-h-[120px]"
+                    style={{
+                      backgroundColor: 'var(--surface-card)',
+                      border: '1px solid var(--surface-border)',
+                      color: 'var(--text-primary)',
+                    }}
                   />
                   <button
                     onClick={handleSend}
                     disabled={!input.trim() || isSending}
-                    className="p-2.5 bg-hw-purple text-white rounded-xl hover:bg-hw-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                    className="p-2.5 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                    style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
                   >
                     <Send className="w-4 h-4" />
                   </button>

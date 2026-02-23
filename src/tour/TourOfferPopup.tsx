@@ -34,27 +34,39 @@ export function TourOfferPopup() {
 
   return (
     <div className="fixed bottom-6 left-4 lg:left-6 z-[10001] animate-[slideUp_0.3s_ease-out]">
-      <div className="bg-white rounded-xl shadow-lg border border-hw-navy-100 w-80 overflow-hidden">
-        {/* Purple accent bar */}
-        <div className="h-1 bg-hw-purple" />
+      <div
+        className="rounded-xl shadow-2xl w-80 overflow-hidden"
+        style={{
+          backgroundColor: 'var(--surface-card)',
+          border: '1px solid var(--surface-border)',
+        }}
+      >
+        {/* Indigo accent bar */}
+        <div className="h-1" style={{ background: 'linear-gradient(90deg, #4f46e5, #7c3aed)' }} />
 
         <div className="p-5">
           {/* Close button */}
           <button
             onClick={handleDismiss}
-            className="absolute top-3 right-3 p-1 rounded-lg hover:bg-hw-navy-50 transition-colors"
+            className="absolute top-3 right-3 p-1 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
           >
-            <X className="w-4 h-4 text-hw-navy-400" />
+            <X className="w-4 h-4" />
           </button>
 
           {/* Content */}
           <div className="flex items-start gap-3 mb-4">
-            <div className="w-10 h-10 bg-hw-purple-100 rounded-lg flex items-center justify-center shrink-0">
-              <HelpCircle className="w-5 h-5 text-hw-purple" />
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: 'linear-gradient(135deg, rgba(79,70,229,0.2), rgba(124,58,237,0.2))' }}
+            >
+              <HelpCircle className="w-5 h-5" style={{ color: '#818cf8' }} />
             </div>
             <div>
-              <h3 className="font-semibold text-hw-navy-900 text-sm">Conheca esta pagina!</h3>
-              <p className="text-sm text-hw-navy-500 mt-1">
+              <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Conheca esta pagina!</h3>
+              <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
                 Quer fazer um tour rapido pelas funcionalidades?
               </p>
             </div>

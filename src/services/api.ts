@@ -7,6 +7,21 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  paramsSerializer: (params) => {
+    const parts: string[] = [];
+    for (const key of Object.keys(params)) {
+      const value = params[key];
+      if (value === undefined || value === null) continue;
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(item)}`);
+        }
+      } else {
+        parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+      }
+    }
+    return parts.join('&');
+  },
 });
 
 export function setAuthToken(token: string | null) {
@@ -54,6 +69,10 @@ export interface User {
     horizonDays: number;
     hasHistory: boolean;
     hasAlerts: boolean;
+    hasTimeline: boolean;
+    hasCategoryTrends: boolean;
+    hasSmartReply: boolean;
+    maxReviews: number | null;
     aiMessagesPerMonth: number;
   };
   tourPreferences: TourPreferences | null;
@@ -330,6 +349,10 @@ export interface ReviewWithHotel {
   reviewerCountry: string | null;
   reviewDate: string | null;
   sentiment: 'positive' | 'neutral' | 'negative';
+  responseStatus: 'PENDING' | 'ANSWERED';
+  respondedAt: string | null;
+  aiReplyText: string | null;
+  aiReplyTone: string | null;
 }
 
 export interface ReviewsSummary {
@@ -351,6 +374,7 @@ export interface ReviewsResponse {
 export async function getReviews(params: {
   hotelId?: string;
   sentiment?: string;
+  responseStatus?: 'PENDING' | 'ANSWERED';
   page?: number;
   limit?: number;
 }): Promise<ReviewsResponse> {
@@ -380,6 +404,166 @@ export interface AiReviewSummary {
 export async function getAiReviewSummary(hotelId: string, refresh = false): Promise<AiReviewSummary> {
   const response = await api.get<AiReviewSummary>('/reviews/ai-summary', {
     params: { hotelId, refresh },
+  });
+  return response.data;
+}
+
+// New reviews features
+
+export interface ReviewResponseStats {
+  responseRate: number;
+  totalAnswered: number;
+  totalPending: number;
+  totalReviews: number;
+  pendingNegative: number;
+}
+
+export interface ReviewCategory {
+  id: string;
+  name: string;
+  score: number | null;
+  prevScore: number | null;
+  trend: number | null;
+  reviewCount: number;
+  competitorScore: number | null;
+}
+
+export interface CategoryTrendPoint {
+  date: string;
+  score: number;
+}
+
+export interface CategoryAlert {
+  categoryId: string;
+  categoryName: string;
+  currentScore: number;
+  previousScore: number;
+  drop: number;
+}
+
+export interface ReviewTimelinePoint {
+  date: string;
+  avgRating: number;
+  reviewCount: number;
+  responseRate?: number;
+}
+
+export interface ReviewPeriodComparison {
+  current: {
+    avgRating: number;
+    totalReviews: number;
+    responseRate: number;
+    startDate: string;
+    endDate: string;
+  };
+  previous: {
+    avgRating: number;
+    totalReviews: number;
+    responseRate: number;
+    startDate: string;
+    endDate: string;
+  };
+  deltas: {
+    avgRating: number;
+    totalReviews: number;
+    responseRate: number;
+  };
+}
+
+export interface SmartReplyResponse {
+  reply: string;
+}
+
+export async function markReviewStatus(
+  reviewId: string,
+  status: 'PENDING' | 'ANSWERED'
+): Promise<ReviewWithHotel> {
+  const response = await api.patch<ReviewWithHotel>(`/reviews/${reviewId}/status`, { status });
+  return response.data;
+}
+
+export const markReviewAnswered = (id: string) => markReviewStatus(id, 'ANSWERED');
+
+export async function getReviewResponseStats(hotelId?: string): Promise<ReviewResponseStats> {
+  const response = await api.get<ReviewResponseStats>('/reviews/response-stats', {
+    params: hotelId ? { hotelId } : undefined,
+  });
+  return response.data;
+}
+
+export async function getSmartReply(
+  reviewId: string,
+  tone: 'empathetic' | 'formal' | 'grateful'
+): Promise<SmartReplyResponse> {
+  const response = await api.post<SmartReplyResponse>(`/reviews/${reviewId}/smart-reply`, { tone });
+  return response.data;
+}
+
+export type ReviewSource = 'BOOKING' | 'GOOGLE' | 'TRIPADVISOR';
+
+export async function getReviewCategories(
+  hotelId?: string,
+  sources?: ReviewSource[],
+  compareMode?: { competitorIds: string[] } // empty array = all competitors
+): Promise<{ categories: ReviewCategory[] }> {
+  const response = await api.get<{ categories: ReviewCategory[] }>('/reviews/categories', {
+    params: {
+      ...(hotelId ? { hotelId } : {}),
+      ...(sources?.length ? { sources } : {}),
+      ...(compareMode
+        ? compareMode.competitorIds.length > 0
+          ? { competitorIds: compareMode.competitorIds }
+          : { compareAll: 'true' }
+        : {}),
+    },
+  });
+  return response.data;
+}
+
+export async function getReviewCategoryTrend(
+  categoryId: string,
+  hotelId?: string
+): Promise<{ points: CategoryTrendPoint[] }> {
+  const response = await api.get<{ points: CategoryTrendPoint[] }>(
+    `/reviews/categories/${categoryId}/trend`,
+    { params: hotelId ? { hotelId } : undefined }
+  );
+  return response.data;
+}
+
+export async function getReviewCategoryAlerts(hotelId?: string, sources?: ReviewSource[]): Promise<{ alerts: CategoryAlert[] }> {
+  const response = await api.get<{ alerts: CategoryAlert[] }>('/reviews/category-alerts', {
+    params: { ...(hotelId ? { hotelId } : {}), ...(sources?.length ? { sources } : {}) },
+  });
+  return response.data;
+}
+
+export async function getReviewsTimeline(
+  range: '7d' | '30d' | '90d',
+  hotelId?: string,
+  sources?: ReviewSource[],
+  compareMode?: { competitorIds: string[] } // empty array = all competitors
+): Promise<{ points: ReviewTimelinePoint[]; competitorPoints: ReviewTimelinePoint[] | null }> {
+  const response = await api.get<{ points: ReviewTimelinePoint[]; competitorPoints: ReviewTimelinePoint[] | null }>('/reviews/timeline', {
+    params: {
+      range,
+      ...(hotelId ? { hotelId } : {}),
+      ...(sources?.length ? { sources } : {}),
+      ...(compareMode
+        ? compareMode.competitorIds.length > 0
+          ? { competitorIds: compareMode.competitorIds }
+          : { compareAll: 'true' }
+        : {}),
+    },
+  });
+  return response.data;
+}
+
+export async function getReviewsTimelineComparison(
+  hotelId?: string
+): Promise<ReviewPeriodComparison> {
+  const response = await api.get<ReviewPeriodComparison>('/reviews/timeline/comparison', {
+    params: hotelId ? { hotelId } : undefined,
   });
   return response.data;
 }

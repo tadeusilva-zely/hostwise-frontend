@@ -19,7 +19,11 @@ interface AuthUser {
     horizonDays: number;
     hasHistory: boolean;
     hasAlerts: boolean;
+    hasTimeline: boolean;
+    hasCategoryTrends: boolean;
+    hasSmartReply: boolean;
     maxReviews: number | null;
+    aiMessagesPerMonth: number;
   };
   tourPreferences: {
     seen: Record<string, boolean>;

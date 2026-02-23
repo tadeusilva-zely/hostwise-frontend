@@ -18,6 +18,7 @@ import { HotelsPage } from './pages/hotels/HotelsPage';
 import { RatesPage } from './pages/rates/RatesPage';
 import { ReviewsPage } from './pages/reviews/ReviewsPage';
 import { OccupancyPage } from './pages/occupancy/OccupancyPage';
+import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 
 // Billing pages
 import { PricingPage } from './pages/billing/PricingPage';
@@ -33,8 +34,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-hw-navy-50">
-        <div className="w-8 h-8 border-4 border-hw-purple border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[var(--surface-bg)]">
+        <div className="w-8 h-8 border-4 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -52,8 +53,8 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-hw-navy-50">
-        <div className="w-8 h-8 border-4 border-hw-purple border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[var(--surface-bg)]">
+        <div className="w-8 h-8 border-4 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -119,6 +120,10 @@ export const router = createBrowserRouter([
       {
         path: '/reviews',
         element: <ReviewsPage />,
+      },
+      {
+        path: '/analytics',
+        element: <AnalyticsPage />,
       },
       {
         path: '/occupancy',

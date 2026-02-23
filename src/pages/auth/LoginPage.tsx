@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { LogIn, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -31,24 +31,35 @@ export function LoginPage() {
 
   return (
     <div className="w-full max-w-md">
-      <div className="bg-white rounded-2xl shadow-xl p-8">
+      <div
+        className="rounded-2xl shadow-2xl p-8"
+        style={{
+          backgroundColor: 'var(--surface-card)',
+          border: '1px solid var(--surface-border)',
+        }}
+      >
         <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-hw-purple-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <LogIn className="w-7 h-7 text-hw-purple" />
+          <div
+            className="w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-4"
+            style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+          >
+            <span className="text-2xl font-bold text-white" style={{ fontFamily: "'Lexend', sans-serif" }}>H</span>
           </div>
-          <h1 className="text-2xl font-bold text-hw-navy-900">Entrar no HostWise</h1>
-          <p className="text-hw-navy-500 mt-1">Acesse sua conta para continuar</p>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)', fontFamily: "'Lexend', sans-serif" }}>
+            Entrar no HostWise
+          </h1>
+          <p className="mt-1" style={{ color: 'var(--text-muted)' }}>Acesse sua conta para continuar</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+          <div className="mb-6 p-3 rounded-lg text-sm" style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-hw-navy-700 mb-1.5">
+            <label htmlFor="email" className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
               Email
             </label>
             <input
@@ -63,7 +74,7 @@ export function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-hw-navy-700 mb-1.5">
+            <label htmlFor="password" className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
               Senha
             </label>
             <div className="relative">
@@ -79,7 +90,10 @@ export function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-hw-navy-400 hover:text-hw-navy-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -94,17 +108,14 @@ export function LoginPage() {
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              <>
-                Entrar
-                <LogIn className="w-4 h-4" />
-              </>
+              'Entrar'
             )}
           </button>
         </form>
 
-        <p className="text-center text-sm text-hw-navy-500 mt-6">
+        <p className="text-center text-sm mt-6" style={{ color: 'var(--text-muted)' }}>
           Nao tem conta?{' '}
-          <Link to="/cadastro" className="text-hw-purple font-medium hover:underline">
+          <Link to="/cadastro" className="font-medium hover:underline" style={{ color: '#818cf8' }}>
             Criar conta
           </Link>
         </p>

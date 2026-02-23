@@ -30,7 +30,7 @@ export function DashboardLayout() {
 
   return (
     <TourProvider>
-      <div className="min-h-screen bg-hw-navy-50">
+      <div className="min-h-screen" style={{ backgroundColor: 'var(--surface-bg)' }}>
         {/* Sidebar */}
         <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
 

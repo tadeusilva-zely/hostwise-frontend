@@ -15,34 +15,44 @@ export function TourTooltip({
   return (
     <div
       {...tooltipProps}
-      className="bg-white rounded-xl shadow-lg border border-hw-navy-100 max-w-sm overflow-hidden"
+      className="rounded-xl shadow-2xl max-w-sm overflow-hidden"
+      style={{
+        backgroundColor: 'var(--surface-card)',
+        border: '1px solid var(--surface-border)',
+      }}
     >
-      {/* Purple accent bar */}
-      <div className="h-1 bg-hw-purple" />
+      {/* Indigo accent bar */}
+      <div className="h-1" style={{ background: 'linear-gradient(90deg, #4f46e5, #7c3aed)' }} />
 
       {/* Close button */}
       <button
         {...closeProps}
-        className="absolute top-3 right-3 p-1 rounded-lg hover:bg-hw-navy-50 transition-colors"
+        className="absolute top-3 right-3 p-1 rounded-lg transition-colors"
+        style={{ color: 'var(--text-muted)' }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-secondary)'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
       >
-        <X className="w-4 h-4 text-hw-navy-400" />
+        <X className="w-4 h-4" />
       </button>
 
       {/* Content */}
       <div className="px-5 py-4">
         {step.title && (
-          <h3 className="text-base font-semibold text-hw-navy-900 mb-2 pr-6">
+          <h3 className="text-base font-semibold mb-2 pr-6" style={{ color: 'var(--text-primary)', fontFamily: "'Lexend', sans-serif" }}>
             {step.title as string}
           </h3>
         )}
-        <p className="text-sm text-hw-navy-600 leading-relaxed">
+        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           {step.content as string}
         </p>
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-5 py-3 border-t border-hw-navy-100 bg-hw-navy-50/50">
-        <span className="text-xs text-hw-navy-400">
+      <div
+        className="flex items-center justify-between px-5 py-3"
+        style={{ borderTop: '1px solid var(--surface-border)', backgroundColor: 'var(--surface-secondary)' }}
+      >
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
           {index + 1} de {size}
         </span>
 

@@ -1,4 +1,3 @@
-import { cn } from '../../lib/utils';
 import type { ChatUsageData } from '../../services/api';
 
 interface ChatUsageBadgeProps {
@@ -13,19 +12,22 @@ export function ChatUsageBadge({ usage, compact = false }: ChatUsageBadgeProps) 
   const limit = usage.limit;
   const percentage = limit > 0 ? (used / limit) * 100 : 0;
 
-  const colorClass =
+  const badgeStyle =
     percentage < 50
-      ? 'bg-green-100 text-green-700'
+      ? { backgroundColor: 'rgba(16,185,129,0.15)', color: '#10b981' }
       : percentage < 80
-        ? 'bg-yellow-100 text-yellow-700'
-        : 'bg-red-100 text-red-700';
+        ? { backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }
+        : { backgroundColor: 'rgba(239,68,68,0.15)', color: '#f87171' };
 
   const barColor =
-    percentage < 50 ? 'bg-green-500' : percentage < 80 ? 'bg-yellow-500' : 'bg-red-500';
+    percentage < 50 ? '#10b981' : percentage < 80 ? '#f59e0b' : '#f87171';
 
   if (compact) {
     return (
-      <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', colorClass)}>
+      <span
+        className="text-xs font-medium px-2 py-0.5 rounded-full"
+        style={badgeStyle}
+      >
         {used}/{limit}
       </span>
     );
@@ -33,21 +35,21 @@ export function ChatUsageBadge({ usage, compact = false }: ChatUsageBadgeProps) 
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between text-xs text-hw-navy-500">
+      <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-muted)' }}>
         <span>
           {used} de {limit} mensagens
           {usage.bonusCredits > 0 && (
-            <span className="text-hw-purple"> +{usage.bonusCredits} bonus</span>
+            <span style={{ color: '#818cf8' }}> +{usage.bonusCredits} bonus</span>
           )}
         </span>
       </div>
-      <div className="w-full bg-hw-navy-100 rounded-full h-1.5">
+      <div className="w-full rounded-full h-1.5" style={{ backgroundColor: 'var(--surface-border)' }}>
         <div
-          className={cn('h-1.5 rounded-full transition-all', barColor)}
-          style={{ width: `${Math.min(percentage, 100)}%` }}
+          className="h-1.5 rounded-full transition-all"
+          style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: barColor }}
         />
       </div>
-      <p className="text-[10px] text-hw-navy-400">
+      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
         Renova em {new Date(usage.periodEnd).toLocaleDateString('pt-BR')}
       </p>
     </div>

@@ -115,7 +115,7 @@ export function PricingPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-hw-purple"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: '#4f46e5' }} />
       </div>
     );
   }
@@ -128,9 +128,7 @@ export function PricingPage() {
     !!user?.trialEndsAt &&
     new Date(user.trialEndsAt) < new Date();
 
-  // Find Starter price from Stripe if available
   const starterPrice = prices.find((p: { name: string }) => p.name === 'Starter');
-  // Find Insight and Pro prices
   const insightPrice = prices.find((p: { name: string }) => p.name === 'Insight');
   const proPrice = prices.find((p: { name: string }) => p.name === 'Professional' || p.name === 'Pro');
 
@@ -166,10 +164,10 @@ export function PricingPage() {
   return (
     <div className="max-w-5xl mx-auto">
       <div className="text-center mb-10">
-        <h1 className="text-3xl font-bold text-hw-navy-900 mb-3">
+        <h1 className="text-3xl font-bold mb-3" style={{ color: 'var(--text-primary)', fontFamily: "'Lexend', sans-serif" }}>
           Escolha seu plano
         </h1>
-        <p className="text-hw-navy-600 max-w-2xl mx-auto">
+        <p className="max-w-2xl mx-auto" style={{ color: 'var(--text-muted)' }}>
           Monitore a concorrência e otimize suas tarifas com inteligência de mercado.
         </p>
         {hasPaidPlan && (
@@ -186,19 +184,28 @@ export function PricingPage() {
 
       {/* Coupon Banner */}
       {!hasPaidPlan && (
-        <div className="mb-8 p-4 rounded-xl border border-hw-navy-200 bg-hw-navy-50">
+        <div
+          className="mb-8 p-4 rounded-xl"
+          style={{
+            backgroundColor: 'var(--surface-card)',
+            border: '1px solid var(--surface-border)',
+          }}
+        >
           <div className="flex items-center gap-2 mb-3">
-            <Tag className="w-4 h-4 text-hw-purple" />
-            <span className="text-sm font-semibold text-hw-navy-700">Tem um cupom de desconto?</span>
+            <Tag className="w-4 h-4" style={{ color: '#818cf8' }} />
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Tem um cupom de desconto?</span>
           </div>
 
           {appliedCoupon ? (
-            <div className="flex items-center justify-between bg-hw-green/10 border border-hw-green/30 rounded-lg px-4 py-3">
+            <div
+              className="flex items-center justify-between rounded-lg px-4 py-3"
+              style={{ backgroundColor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)' }}
+            >
               <div>
-                <p className="text-sm font-semibold text-hw-green">
+                <p className="text-sm font-semibold" style={{ color: '#10b981' }}>
                   Cupom aplicado: {appliedCoupon.name}
                 </p>
-                <p className="text-xs text-hw-navy-500 mt-0.5">
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                   {appliedCoupon.percentOff
                     ? `${appliedCoupon.percentOff}% de desconto`
                     : appliedCoupon.amountOff
@@ -209,7 +216,10 @@ export function PricingPage() {
               </div>
               <button
                 onClick={handleRemoveCoupon}
-                className="text-hw-navy-400 hover:text-hw-navy-600 ml-4"
+                className="ml-4 transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
                 aria-label="Remover cupom"
               >
                 <X className="w-4 h-4" />
@@ -227,7 +237,7 @@ export function PricingPage() {
                   }}
                   onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
                   placeholder="Digite seu cupom"
-                  className="flex-1 px-3 py-2 text-sm border border-hw-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw-purple/30 bg-white"
+                  className="input flex-1 text-sm"
                 />
                 <Button
                   variant="secondary"
@@ -240,7 +250,7 @@ export function PricingPage() {
                 </Button>
               </div>
               {couponError && (
-                <p className="mt-1.5 text-xs text-red-500">{couponError}</p>
+                <p className="mt-1.5 text-xs text-red-400">{couponError}</p>
               )}
             </div>
           )}
@@ -250,38 +260,41 @@ export function PricingPage() {
       <div className="grid md:grid-cols-3 gap-6">
         {allPlans.map((plan) => {
           const isPopular = plan.name === 'Insight';
-          // When trial expired, Starter is NOT considered current plan — user must subscribe to continue
           const isCurrentPlan = !isTrialExpired && (user?.plan === plan.name.toUpperCase() || (plan.name === 'Professional' && user?.plan === 'PRO'));
           const isStarter = plan.isStarter;
 
           return (
-            <Card
+            <div
               key={plan.id}
-              className={cn(
-                'relative',
-                isPopular && 'border-2 border-hw-green ring-2 ring-hw-green/20'
-              )}
+              className="relative rounded-2xl overflow-hidden"
+              style={{
+                backgroundColor: 'var(--surface-card)',
+                border: isPopular
+                  ? '2px solid #10b981'
+                  : '1px solid var(--surface-border)',
+                boxShadow: isPopular ? '0 0 0 4px rgba(16,185,129,0.1)' : undefined,
+              }}
             >
               {isPopular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-hw-green text-white text-sm font-semibold px-4 py-1 rounded-full">
+                  <span className="text-sm font-semibold px-4 py-1 rounded-full text-white" style={{ backgroundColor: '#10b981' }}>
                     Mais Popular
                   </span>
                 </div>
               )}
 
               <div className="p-6">
-                <h3 className="text-xl font-bold text-hw-navy-900">{plan.name}</h3>
+                <h3 className="text-xl font-bold" style={{ color: 'var(--text-primary)', fontFamily: "'Lexend', sans-serif" }}>{plan.name}</h3>
 
                 <div className="mt-4 mb-1">
-                  <span className="text-4xl font-bold text-hw-navy-900">
+                  <span className="text-4xl font-bold" style={{ color: 'var(--text-primary)' }}>
                     R$ {plan.price}
                   </span>
-                  <span className="text-hw-navy-500">/mês</span>
+                  <span style={{ color: 'var(--text-muted)' }}>/mês</span>
                 </div>
 
                 {isStarter && (
-                  <p className="text-sm text-hw-green font-medium mb-4">
+                  <p className="text-sm font-medium mb-4" style={{ color: '#10b981' }}>
                     7 dias grátis para começar
                   </p>
                 )}
@@ -310,11 +323,14 @@ export function PricingPage() {
                 <ul className="mt-6 space-y-3">
                   {plan.features.map((feature, i) => (
                     <li key={i} className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-hw-green flex-shrink-0 mt-0.5" />
-                      <span className="text-sm text-hw-navy-600 flex items-center gap-2 flex-wrap">
+                      <Check className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#10b981' }} />
+                      <span className="text-sm flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-secondary)' }}>
                         {feature.text}
                         {feature.comingSoon && (
-                          <span className="inline-flex items-center gap-1 bg-hw-navy-100 text-hw-navy-500 text-xs px-2 py-0.5 rounded-full font-medium">
+                          <span
+                            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
+                            style={{ backgroundColor: 'var(--surface-secondary)', color: 'var(--text-muted)', border: '1px solid var(--surface-border)' }}
+                          >
                             <Clock className="w-3 h-3" />
                             em breve
                           </span>
@@ -324,16 +340,16 @@ export function PricingPage() {
                   ))}
                 </ul>
               </div>
-            </Card>
+            </div>
           );
         })}
       </div>
 
       {/* FAQ or additional info */}
       <div className="mt-12 text-center">
-        <p className="text-hw-navy-500">
+        <p style={{ color: 'var(--text-muted)' }}>
           Todos os planos incluem 7 dias de teste grátis.{' '}
-          <a href="#" className="text-hw-purple hover:underline">
+          <a href="#" className="hover:underline" style={{ color: '#818cf8' }}>
             Dúvidas? Fale conosco
           </a>
         </p>

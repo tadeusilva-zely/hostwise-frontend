@@ -15,8 +15,10 @@ export function SettingsPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-hw-navy-900">Configurações</h1>
-        <p className="text-hw-navy-500 mt-1">
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)', fontFamily: "'Lexend', sans-serif" }}>
+          Configurações
+        </h1>
+        <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
           Gerencie sua conta e preferências.
         </p>
       </div>
@@ -25,22 +27,25 @@ export function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <User className="w-5 h-5" />
+            <User className="w-5 h-5" style={{ color: '#818cf8' }} />
             Perfil
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 bg-hw-purple-100 rounded-full flex items-center justify-center">
-              <span className="text-2xl font-bold text-hw-purple">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+            >
+              <span className="text-2xl font-bold text-white">
                 {authUser?.name?.charAt(0)?.toUpperCase() || 'U'}
               </span>
             </div>
             <div>
-              <p className="font-semibold text-hw-navy-900">{authUser?.name}</p>
-              <p className="text-sm text-hw-navy-500">{authUser?.email}</p>
+              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{authUser?.name}</p>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{authUser?.email}</p>
               {authUser?.phone && (
-                <p className="text-sm text-hw-navy-400">{authUser.phone}</p>
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{authUser.phone}</p>
               )}
             </div>
           </div>
@@ -54,7 +59,7 @@ export function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Bell className="w-5 h-5" />
+            <Bell className="w-5 h-5" style={{ color: '#818cf8' }} />
             Notificações
           </CardTitle>
         </CardHeader>
@@ -62,31 +67,37 @@ export function SettingsPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-hw-navy-900">Alertas de preço</p>
-                <p className="text-sm text-hw-navy-500">
+                <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Alertas de preço</p>
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
                   Receba notificações quando concorrentes mudarem preços
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" className="sr-only peer" disabled />
-                <div className="w-11 h-6 bg-hw-navy-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-hw-purple after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                <div
+                  className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
+                  style={{ backgroundColor: 'var(--surface-border)' }}
+                />
               </label>
             </div>
 
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-hw-navy-900">Resumo semanal</p>
-                <p className="text-sm text-hw-navy-500">
+                <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Resumo semanal</p>
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
                   Receba um resumo semanal da concorrência
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" className="sr-only peer" disabled />
-                <div className="w-11 h-6 bg-hw-navy-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-hw-purple after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                <div
+                  className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
+                  style={{ backgroundColor: 'var(--surface-border)' }}
+                />
               </label>
             </div>
           </div>
-          <p className="text-xs text-hw-navy-400 mt-4">
+          <p className="text-xs mt-4" style={{ color: 'var(--text-muted)' }}>
             Configurações de notificação estarão disponíveis em breve.
           </p>
         </CardContent>
@@ -96,12 +107,12 @@ export function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
+            <Shield className="w-5 h-5" style={{ color: '#818cf8' }} />
             Assinatura
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-hw-navy-600 mb-4">
+          <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>
             Gerencie seu plano, método de pagamento e veja faturas.
           </p>
           <Link to="/billing/manage">
@@ -134,7 +145,6 @@ function TeamSection({ queryClient }: { queryClient: ReturnType<typeof useQueryC
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['invitations'] });
       setInviteEmail('');
-      // Auto-copy the link
       navigator.clipboard.writeText(data.inviteUrl);
       setCopiedLink(data.inviteUrl);
       setTimeout(() => setCopiedLink(''), 3000);
@@ -168,7 +178,7 @@ function TeamSection({ queryClient }: { queryClient: ReturnType<typeof useQueryC
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Users className="w-5 h-5" />
+          <Users className="w-5 h-5" style={{ color: '#818cf8' }} />
           Equipe
         </CardTitle>
       </CardHeader>
@@ -198,7 +208,7 @@ function TeamSection({ queryClient }: { queryClient: ReturnType<typeof useQueryC
         </form>
 
         {createInvite.isError && (
-          <p className="text-sm text-red-600">
+          <p className="text-sm text-red-400">
             {(createInvite.error as any)?.response?.data?.error || 'Erro ao enviar convite.'}
           </p>
         )}
@@ -206,26 +216,36 @@ function TeamSection({ queryClient }: { queryClient: ReturnType<typeof useQueryC
         {/* Members */}
         {teamLoading ? (
           <div className="flex justify-center py-4">
-            <Loader2 className="w-5 h-5 text-hw-purple animate-spin" />
+            <Loader2 className="w-5 h-5 animate-spin" style={{ color: '#818cf8' }} />
           </div>
         ) : members.length > 0 ? (
           <div>
-            <p className="text-sm font-medium text-hw-navy-700 mb-2">Membros</p>
+            <p className="text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Membros</p>
             <div className="space-y-2">
               {members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-3 bg-hw-navy-50 rounded-lg">
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between p-3 rounded-lg"
+                  style={{ backgroundColor: 'var(--surface-secondary)' }}
+                >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-hw-purple-100 rounded-full flex items-center justify-center">
-                      <span className="text-xs font-semibold text-hw-purple">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center"
+                      style={{ background: 'linear-gradient(135deg, rgba(79,70,229,0.3), rgba(124,58,237,0.3))' }}
+                    >
+                      <span className="text-xs font-semibold" style={{ color: '#818cf8' }}>
                         {member.name?.charAt(0)?.toUpperCase() || 'U'}
                       </span>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-hw-navy-900">{member.name}</p>
-                      <p className="text-xs text-hw-navy-500">{member.email}</p>
+                      <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{member.name}</p>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{member.email}</p>
                     </div>
                   </div>
-                  <span className="text-xs px-2 py-1 rounded-full bg-hw-navy-100 text-hw-navy-600">
+                  <span
+                    className="text-xs px-2 py-1 rounded-full"
+                    style={{ backgroundColor: 'var(--surface-card)', color: 'var(--text-muted)', border: '1px solid var(--surface-border)' }}
+                  >
                     {member.role === 'OWNER' ? 'Dono' : 'Membro'}
                   </span>
                 </div>
@@ -237,13 +257,17 @@ function TeamSection({ queryClient }: { queryClient: ReturnType<typeof useQueryC
         {/* Pending Invitations */}
         {invitesLoading ? null : invitations.length > 0 ? (
           <div>
-            <p className="text-sm font-medium text-hw-navy-700 mb-2">Convites pendentes</p>
+            <p className="text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Convites pendentes</p>
             <div className="space-y-2">
               {invitations.map((invite) => (
-                <div key={invite.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                <div
+                  key={invite.id}
+                  className="flex items-center justify-between p-3 rounded-lg"
+                  style={{ backgroundColor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)' }}
+                >
                   <div>
-                    <p className="text-sm font-medium text-hw-navy-900">{invite.email}</p>
-                    <p className="text-xs text-hw-navy-500">
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{invite.email}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                       Expira em {new Date(invite.expiresAt).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
@@ -253,18 +277,24 @@ function TeamSection({ queryClient }: { queryClient: ReturnType<typeof useQueryC
                         const baseUrl = window.location.origin;
                         handleCopyLink(`${baseUrl}/convite/${invite.token}`);
                       }}
-                      className="p-2 text-hw-navy-400 hover:text-hw-purple transition-colors"
+                      className="p-2 transition-colors rounded"
+                      style={{ color: 'var(--text-muted)' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#818cf8'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
                       title="Copiar link"
                     >
                       {copiedLink.includes(invite.token) ? (
-                        <Check className="w-4 h-4 text-green-500" />
+                        <Check className="w-4 h-4 text-green-400" />
                       ) : (
                         <Copy className="w-4 h-4" />
                       )}
                     </button>
                     <button
                       onClick={() => revokeInvite.mutate(invite.id)}
-                      className="p-2 text-hw-navy-400 hover:text-red-500 transition-colors"
+                      className="p-2 transition-colors rounded"
+                      style={{ color: 'var(--text-muted)' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
                       title="Revogar convite"
                       disabled={revokeInvite.isPending}
                     >

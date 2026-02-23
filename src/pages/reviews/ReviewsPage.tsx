@@ -1,10 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { HotelSelector } from '../../components/ui/HotelSelector';
-import { getReviews, getReviewsSummary, getHotels, getAiReviewSummary } from '../../services/api';
+import { SmartReplyPanel } from '../../components/reviews/SmartReplyPanel';
+import {
+  getReviews,
+  getReviewsSummary,
+  getHotels,
+  getAiReviewSummary,
+  getReviewResponseStats,
+  markReviewAnswered,
+} from '../../services/api';
 import type { ReviewWithHotel, AiReviewSummary } from '../../services/api';
 import {
   Star,
@@ -21,8 +29,9 @@ import {
   AlertCircle,
   Sparkles,
   RefreshCw,
+  CheckCircle,
+  Lock,
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
 import { BarChart, DonutChart } from '@tremor/react';
 import Joyride, { type CallBackProps, STATUS } from 'react-joyride';
 import { useTour } from '../../contexts/TourContext';
@@ -34,22 +43,61 @@ import { tourStyles } from '../../tour/tourStyles';
 export function ReviewsPage() {
   const { user } = useAuth();
   const maxReviews = user?.limits.maxReviews ?? null;
-  const [filter, setFilter] = useState<'all' | 'positive' | 'neutral' | 'negative'>('all');
-  const [selectedHotelId, setSelectedHotelId] = useState<string>('all');
-  const { isRunning, currentPage, stopTour, markTourSeen } = useTour();
+  const canSmartReply = user?.limits.hasSmartReply ?? false;
 
-  const handleTourCallback = useCallback((data: CallBackProps) => {
-    const { status } = data;
-    if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
-      stopTour();
-      markTourSeen('reviews');
-    }
-  }, [stopTour, markTourSeen]);
+  const [searchParams] = useSearchParams();
+  const { hash } = useLocation();
+  const [filter, setFilter] = useState<'all' | 'positive' | 'neutral' | 'negative'>(
+    (searchParams.get('sentiment') as 'negative' | 'neutral' | 'positive') || 'all'
+  );
+  const [responseFilter, setResponseFilter] = useState<'ALL' | 'PENDING' | 'ANSWERED'>(
+    (searchParams.get('responseStatus') as 'PENDING' | 'ANSWERED') || 'ALL'
+  );
+  const [selectedHotelId, setSelectedHotelId] = useState<string>(
+    searchParams.get('hotelId') || 'all'
+  );
+  const [smartReplyReview, setSmartReplyReview] = useState<ReviewWithHotel | null>(null);
+
+  // Scroll to anchor if present in URL (e.g. #reviews-list)
+  useEffect(() => {
+    if (!hash) return;
+    const id = hash.slice(1);
+    const attempt = (tries: number) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (tries > 0) {
+        setTimeout(() => attempt(tries - 1), 200);
+      }
+    };
+    attempt(10);
+  }, [hash]);
+
+  const { isRunning, currentPage, stopTour, markTourSeen } = useTour();
+  const queryClient = useQueryClient();
+
+  const handleTourCallback = useCallback(
+    (data: CallBackProps) => {
+      const { status } = data;
+      if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+        stopTour();
+        markTourSeen('reviews');
+      }
+    },
+    [stopTour, markTourSeen]
+  );
 
   const { data: hotelsData } = useQuery({
     queryKey: ['hotels'],
     queryFn: getHotels,
   });
+
+  // Default hotel selector to own hotel when no hotelId in URL
+  useEffect(() => {
+    if (!searchParams.get('hotelId') && hotelsData?.ownHotels?.length > 0 && selectedHotelId === 'all') {
+      setSelectedHotelId(hotelsData.ownHotels[0].id);
+    }
+  }, [hotelsData?.ownHotels?.length]);
 
   const { data: summaryData, isLoading: summaryLoading } = useQuery({
     queryKey: ['reviews-summary', selectedHotelId],
@@ -58,15 +106,33 @@ export function ReviewsPage() {
     gcTime: 0,
   });
 
-  const { data: reviewsData, isLoading: reviewsLoading, isError, refetch } = useQuery({
-    queryKey: ['reviews', filter, selectedHotelId],
-    queryFn: () => getReviews({
-      sentiment: filter,
-      limit: 50,
-      hotelId: selectedHotelId !== 'all' ? selectedHotelId : undefined,
-    }),
+  const { data: responseStats } = useQuery({
+    queryKey: ['reviews-response-stats', selectedHotelId],
+    queryFn: () =>
+      getReviewResponseStats(selectedHotelId !== 'all' ? selectedHotelId : undefined),
     staleTime: 0,
     gcTime: 0,
+  });
+
+  const { data: reviewsData, isLoading: reviewsLoading, isError, refetch } = useQuery({
+    queryKey: ['reviews', filter, responseFilter, selectedHotelId],
+    queryFn: () =>
+      getReviews({
+        sentiment: filter !== 'all' ? filter : undefined,
+        responseStatus: responseFilter !== 'ALL' ? responseFilter : undefined,
+        limit: 50,
+        hotelId: selectedHotelId !== 'all' ? selectedHotelId : undefined,
+      }),
+    staleTime: 0,
+    gcTime: 0,
+  });
+
+  const markAnsweredMutation = useMutation({
+    mutationFn: (reviewId: string) => markReviewAnswered(reviewId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reviews'] });
+      queryClient.invalidateQueries({ queryKey: ['reviews-response-stats'] });
+    },
   });
 
   const ownHotels = hotelsData?.ownHotels || [];
@@ -74,7 +140,6 @@ export function ReviewsPage() {
   const allHotels = [...ownHotels, ...competitorHotels];
 
   const [aiHotelId, setAiHotelId] = useState<string | null>(null);
-  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!aiHotelId && allHotels.length > 0) {
@@ -98,7 +163,7 @@ export function ReviewsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-hw-purple animate-spin" />
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent-primary)' }} />
       </div>
     );
   }
@@ -107,8 +172,12 @@ export function ReviewsPage() {
     return (
       <div className="text-center py-12">
         <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-        <h2 className="text-lg font-semibold text-hw-navy-900">Erro ao carregar avaliações</h2>
-        <p className="text-hw-navy-500 mt-1">Tente novamente mais tarde.</p>
+        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Erro ao carregar avaliações
+        </h2>
+        <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
+          Tente novamente mais tarde.
+        </p>
         <Button variant="secondary" onClick={() => refetch()} className="mt-4">
           Tentar novamente
         </Button>
@@ -132,19 +201,16 @@ export function ReviewsPage() {
   const lockedReviews = maxReviews ? allReviews.slice(maxReviews, maxReviews + 3) : [];
   const hasMoreReviews = maxReviews ? allReviews.length > maxReviews : false;
 
-  // No reviews at all
   if (mySummary.totalReviews === 0 && reviews.length === 0) {
     return <EmptyState />;
   }
 
-  // Sentiment distribution for chart
   const sentimentData = [
     { name: 'Positivas', value: mySummary.positive, color: 'emerald' },
     { name: 'Neutras', value: mySummary.neutral, color: 'amber' },
     { name: 'Negativas', value: mySummary.negative, color: 'rose' },
   ];
 
-  // Comparison bar chart data — "Meu Hotel" uses myAvgRating (never changes)
   const comparisonData = [
     { name: 'Meu Hotel', 'Nota Média': mySummary.myAvgRating },
     { name: 'Concorrentes', 'Nota Média': mySummary.competitorAvgRating },
@@ -166,12 +232,28 @@ export function ReviewsPage() {
         callback={handleTourCallback}
       />
 
+      {/* Smart Reply Panel */}
+      {smartReplyReview && (
+        <SmartReplyPanel
+          review={smartReplyReview}
+          onClose={() => setSmartReplyReview(null)}
+        />
+      )}
+
       {/* Header */}
-      <div data-tour="reviews-header" className="flex items-center justify-between">
+      <div
+        data-tour="reviews-header"
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+      >
         <div>
-          <h1 className="text-2xl font-bold text-hw-navy-900">Raio-X de Avaliações</h1>
-          <p className="text-hw-navy-500 mt-1">
-            Analise as avaliações do seu hotel e da concorrência
+          <h1
+            className="text-2xl font-bold"
+            style={{ color: 'var(--text-primary)', fontFamily: 'Lexend, sans-serif' }}
+          >
+            Avaliações
+          </h1>
+          <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
+            Analise e responda as avaliações do seu hotel e da concorrência
           </p>
         </div>
         <div data-tour="reviews-hotel-selector">
@@ -184,268 +266,424 @@ export function ReviewsPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div data-tour="reviews-summary" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-hw-purple-100 rounded-lg flex items-center justify-center">
-              <Star className="w-6 h-6 text-hw-purple" />
+      {/* Response Rate Banner */}
+      {responseStats && (
+        <div
+          className="rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+          style={{
+            background:
+              responseStats.responseRate >= 80
+                ? 'linear-gradient(135deg, rgba(16,185,129,0.08), rgba(5,150,105,0.05))'
+                : 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(217,119,6,0.05))',
+            border: `1px solid ${
+              responseStats.responseRate >= 80 ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'
+            }`,
+          }}
+        >
+          <div className="flex items-center gap-4">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{
+                backgroundColor:
+                  responseStats.responseRate >= 80
+                    ? 'rgba(16,185,129,0.15)'
+                    : 'rgba(245,158,11,0.15)',
+              }}
+            >
+              <MessageSquare
+                className="w-5 h-5"
+                style={{ color: responseStats.responseRate >= 80 ? '#10b981' : '#f59e0b' }}
+              />
             </div>
             <div>
-              <p className="text-2xl font-bold text-hw-navy-900">{mySummary.avgRating}</p>
-              <p className="text-sm text-hw-navy-500">Nota Média</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <ThumbsUp className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-hw-navy-900">{mySummary.positive}</p>
-              <p className="text-sm text-hw-navy-500">Positivas</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-              <ThumbsDown className="w-6 h-6 text-red-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-hw-navy-900">{mySummary.negative}</p>
-              <p className="text-sm text-hw-navy-500">Negativas</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center gap-4">
-            <div className={cn(
-              'w-12 h-12 rounded-lg flex items-center justify-center',
-              mySummary.diff >= 0 ? 'bg-green-100' : 'bg-red-100'
-            )}>
-              {mySummary.diff >= 0 ? (
-                <TrendingUp className="w-6 h-6 text-green-600" />
-              ) : (
-                <TrendingDown className="w-6 h-6 text-red-600" />
-              )}
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-hw-navy-900">
-                {mySummary.diff >= 0 ? '+' : ''}{mySummary.diff}
+              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Taxa de resposta:{' '}
+                <span
+                  style={{ color: responseStats.responseRate >= 80 ? '#10b981' : '#f59e0b' }}
+                >
+                  {responseStats.responseRate}%
+                </span>
               </p>
-              <p className="text-sm text-hw-navy-500">vs Concorrentes</p>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                {responseStats.totalPending > 0
+                  ? `${responseStats.totalPending} avaliações aguardando resposta`
+                  : 'Todas as avaliações foram respondidas!'}
+              </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          {responseStats.totalPending > 0 && (
+            <button
+              onClick={() => {
+                setResponseFilter('PENDING');
+                setTimeout(() => {
+                  document.getElementById('reviews-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+              }}
+              className="text-sm font-medium px-4 py-2 rounded-lg transition-colors flex-shrink-0"
+              style={{
+                backgroundColor: 'rgba(245,158,11,0.15)',
+                color: '#f59e0b',
+                border: '1px solid rgba(245,158,11,0.3)',
+              }}
+            >
+              Ver pendentes
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Summary Cards */}
+      <div
+        data-tour="reviews-summary"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+      >
+        {[
+          {
+            value: mySummary.avgRating,
+            label: 'Nota Média',
+            icon: Star,
+            bg: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+            iconColor: 'white',
+            valueColor: 'var(--text-primary)',
+          },
+          {
+            value: mySummary.positive,
+            label: 'Positivas',
+            icon: ThumbsUp,
+            bg: 'rgba(16,185,129,0.12)',
+            iconColor: '#10b981',
+            valueColor: 'var(--text-primary)',
+          },
+          {
+            value: mySummary.negative,
+            label: 'Negativas',
+            icon: ThumbsDown,
+            bg: 'rgba(239,68,68,0.12)',
+            iconColor: '#ef4444',
+            valueColor: 'var(--text-primary)',
+          },
+          {
+            value: `${mySummary.diff >= 0 ? '+' : ''}${mySummary.diff}`,
+            label: 'vs Concorrentes',
+            icon: mySummary.diff >= 0 ? TrendingUp : TrendingDown,
+            bg: mySummary.diff >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+            iconColor: mySummary.diff >= 0 ? '#10b981' : '#ef4444',
+            valueColor: mySummary.diff >= 0 ? '#10b981' : '#ef4444',
+          },
+        ].map(({ value, label, icon: Icon, bg, iconColor, valueColor }) => (
+          <Card key={label}>
+            <CardContent className="flex items-center gap-4 py-5">
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: bg }}
+              >
+                <Icon className="w-6 h-6" style={{ color: iconColor }} />
+              </div>
+              <div>
+                <p
+                  className="text-2xl font-bold"
+                  style={{ color: valueColor, fontFamily: 'Lexend, sans-serif' }}
+                >
+                  {value}
+                </p>
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                  {label}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sentiment Distribution */}
         <div data-tour="reviews-sentiment-chart">
-        <Card>
-          <CardHeader>
-            <CardTitle>Distribuição de Sentimento</CardTitle>
-            <CardDescription>Classificação das avaliações do seu hotel</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-8">
-              <DonutChart
-                className="h-48 w-48"
-                data={sentimentData}
-                category="value"
-                index="name"
-                colors={['emerald', 'amber', 'rose']}
-                showAnimation={true}
-              />
-              <div className="flex-1 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-emerald-500 rounded-full" />
-                    <span className="text-sm text-hw-navy-700">Positivas</span>
-                  </div>
-                  <span className="font-semibold text-hw-navy-900">{mySummary.positive}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-amber-500 rounded-full" />
-                    <span className="text-sm text-hw-navy-700">Neutras</span>
-                  </div>
-                  <span className="font-semibold text-hw-navy-900">{mySummary.neutral}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-rose-500 rounded-full" />
-                    <span className="text-sm text-hw-navy-700">Negativas</span>
-                  </div>
-                  <span className="font-semibold text-hw-navy-900">{mySummary.negative}</span>
+          <Card>
+            <CardHeader>
+              <CardTitle>Distribuição de Sentimento</CardTitle>
+              <CardDescription>Classificação das avaliações do seu hotel</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-8">
+                <DonutChart
+                  className="h-48 w-48"
+                  data={sentimentData}
+                  category="value"
+                  index="name"
+                  colors={['emerald', 'amber', 'rose']}
+                  showAnimation
+                />
+                <div className="flex-1 space-y-3">
+                  {[
+                    { label: 'Positivas', count: mySummary.positive, color: '#10b981' },
+                    { label: 'Neutras', count: mySummary.neutral, color: '#f59e0b' },
+                    { label: 'Negativas', count: mySummary.negative, color: '#f43f5e' },
+                  ].map(({ label, count, color }) => (
+                    <div key={label} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                          {label}
+                        </span>
+                      </div>
+                      <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        {count}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Comparison with Competitors */}
         <div data-tour="reviews-comparison-chart">
-        <Card>
-          <CardHeader>
-            <CardTitle>Comparativo de Notas</CardTitle>
-            <CardDescription>Sua nota vs média dos concorrentes</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <BarChart
-              className="h-48"
-              data={comparisonData}
-              index="name"
-              categories={['Nota Média']}
-              colors={['violet']}
-              valueFormatter={(value) => value.toFixed(1)}
-              showAnimation={true}
-            />
-            <div className="mt-4 p-4 bg-hw-navy-50 rounded-lg">
-              <p className="text-sm text-hw-navy-600">
-                {mySummary.diff >= 0 ? (
-                  <>Seu hotel está <span className="font-semibold text-green-600">{mySummary.diff} pontos acima</span> da média dos concorrentes!</>
-                ) : (
-                  <>Seu hotel está <span className="font-semibold text-red-600">{Math.abs(mySummary.diff)} pontos abaixo</span> da média dos concorrentes.</>
-                )}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Comparativo de Notas</CardTitle>
+              <CardDescription>Sua nota vs média dos concorrentes</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BarChart
+                className="h-48"
+                data={comparisonData}
+                index="name"
+                categories={['Nota Média']}
+                colors={['indigo']}
+                valueFormatter={(value) => value.toFixed(1)}
+                showAnimation
+              />
+              <div
+                className="mt-4 p-3 rounded-xl"
+                style={{ backgroundColor: 'var(--surface-secondary)' }}
+              >
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  {mySummary.diff >= 0 ? (
+                    <>
+                      Seu hotel está{' '}
+                      <span className="font-semibold" style={{ color: '#10b981' }}>
+                        {mySummary.diff} pontos acima
+                      </span>{' '}
+                      da média dos concorrentes!
+                    </>
+                  ) : (
+                    <>
+                      Seu hotel está{' '}
+                      <span className="font-semibold" style={{ color: '#ef4444' }}>
+                        {Math.abs(mySummary.diff)} pontos abaixo
+                      </span>{' '}
+                      da média dos concorrentes.
+                    </>
+                  )}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
       {/* AI Summary */}
       <div data-tour="reviews-ai-summary">
-      <AiSummaryCard
-        summary={aiSummary}
-        isLoading={aiLoading}
-        isError={aiError}
-        isLocked={!!maxReviews}
-        hotels={allHotels.map((h) => ({ id: h.id, name: h.name, isOwn: h.isOwn }))}
-        selectedHotelId={aiHotelId}
-        onHotelChange={setAiHotelId}
-        onRefresh={() => {
-          if (aiHotelId) {
-            queryClient.removeQueries({ queryKey: ['ai-review-summary', aiHotelId] });
-            queryClient.fetchQuery({
-              queryKey: ['ai-review-summary', aiHotelId],
-              queryFn: () => getAiReviewSummary(aiHotelId, true),
-            });
-          }
-        }}
-      />
+        <AiSummaryCard
+          summary={aiSummary}
+          isLoading={aiLoading}
+          isError={aiError}
+          isLocked={!!maxReviews}
+          hotels={allHotels.map((h) => ({ id: h.id, name: h.name, isOwn: h.isOwn }))}
+          selectedHotelId={aiHotelId}
+          onHotelChange={setAiHotelId}
+          onRefresh={() => {
+            if (aiHotelId) {
+              queryClient.removeQueries({ queryKey: ['ai-review-summary', aiHotelId] });
+              queryClient.fetchQuery({
+                queryKey: ['ai-review-summary', aiHotelId],
+                queryFn: () => getAiReviewSummary(aiHotelId, true),
+              });
+            }
+          }}
+        />
       </div>
 
       {/* Reviews List */}
-      <div data-tour="reviews-list">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+      <div data-tour="reviews-list" id="reviews-list">
+        <Card>
+          <CardHeader>
             <div>
               <CardTitle>Avaliações Recentes</CardTitle>
-              <CardDescription>Últimas avaliações recebidas</CardDescription>
+              <CardDescription>
+                {reviewsData?.pagination?.total
+                  ? `${reviewsData.pagination.total} avaliações`
+                  : 'Últimas avaliações recebidas'}
+              </CardDescription>
             </div>
 
-            {/* Filter Buttons */}
-            <div className="flex bg-hw-navy-100 rounded-lg p-1">
-              {[
-                { value: 'all', label: 'Todas' },
-                { value: 'positive', label: 'Positivas' },
-                { value: 'neutral', label: 'Neutras' },
-                { value: 'negative', label: 'Negativas' },
-              ].map((f) => (
-                <button
-                  key={f.value}
-                  onClick={() => setFilter(f.value as typeof filter)}
-                  className={cn(
-                    'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
-                    filter === f.value
-                      ? 'bg-white text-hw-navy-900 shadow-sm'
-                      : 'text-hw-navy-600 hover:text-hw-navy-900'
-                  )}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {reviews.map(review => (
-              <ReviewCard key={review.id} review={review} />
-            ))}
-
-            {reviews.length === 0 && (
-              <div className="text-center py-8 text-hw-navy-500">
-                Nenhuma avaliação encontrada com este filtro.
-              </div>
-            )}
-          </div>
-
-          {/* Blur + CTA for locked reviews beyond plan limit */}
-          {hasMoreReviews && (
-            <div className="relative mt-4">
-              <div className="blur-sm pointer-events-none select-none space-y-4">
-                {lockedReviews.map(review => (
-                  <ReviewCard key={review.id} review={review} />
+            {/* Dual filter bar */}
+            <div className="flex flex-col gap-2 mt-4">
+              <div
+                className="flex rounded-xl p-1 gap-1"
+                style={{ backgroundColor: 'var(--surface-secondary)' }}
+              >
+                {[
+                  { value: 'all', label: 'Todas' },
+                  { value: 'positive', label: 'Positivas' },
+                  { value: 'neutral', label: 'Neutras' },
+                  { value: 'negative', label: 'Negativas' },
+                ].map((f) => (
+                  <button
+                    key={f.value}
+                    onClick={() => setFilter(f.value as typeof filter)}
+                    className="flex-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-150"
+                    style={
+                      filter === f.value
+                        ? {
+                            backgroundColor: 'var(--surface-card)',
+                            color: 'var(--text-primary)',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                          }
+                        : { color: 'var(--text-muted)' }
+                    }
+                  >
+                    {f.label}
+                  </button>
                 ))}
               </div>
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-t from-white via-white/95 to-white/60 rounded-lg">
-                <Sparkles className="w-6 h-6 text-hw-purple mb-2" />
-                <p className="font-semibold text-hw-navy-900 text-sm">
-                  Ver todas as avaliações requer upgrade
-                </p>
-                <p className="text-xs text-hw-navy-500 mt-1 mb-3">
-                  O plano Starter exibe apenas as últimas 10 avaliações
-                </p>
-                <Link to="/billing">
-                  <Button size="sm" variant="primary">
-                    Ver planos e fazer upgrade
-                  </Button>
-                </Link>
+
+              <div
+                className="flex rounded-xl p-1 gap-1"
+                style={{ backgroundColor: 'var(--surface-secondary)' }}
+              >
+                {[
+                  { value: 'ALL', label: 'Todos os status' },
+                  { value: 'PENDING', label: 'Pendentes' },
+                  { value: 'ANSWERED', label: 'Respondidos' },
+                ].map((f) => (
+                  <button
+                    key={f.value}
+                    onClick={() => setResponseFilter(f.value as typeof responseFilter)}
+                    className="flex-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-150"
+                    style={
+                      responseFilter === f.value
+                        ? {
+                            backgroundColor: 'var(--surface-card)',
+                            color: 'var(--text-primary)',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                          }
+                        : { color: 'var(--text-muted)' }
+                    }
+                  >
+                    {f.label}
+                  </button>
+                ))}
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+
+          <CardContent>
+            <div className="space-y-3">
+              {reviews.map((review) => (
+                <ReviewCard
+                  key={review.id}
+                  review={review}
+                  canSmartReply={canSmartReply}
+                  onMarkAnswered={(id) => markAnsweredMutation.mutate(id)}
+                  onSmartReply={(r) => setSmartReplyReview(r)}
+                  isMarkingAnswered={markAnsweredMutation.isPending}
+                />
+              ))}
+
+              {reviews.length === 0 && (
+                <div className="text-center py-10" style={{ color: 'var(--text-muted)' }}>
+                  Nenhuma avaliação encontrada com este filtro.
+                </div>
+              )}
+            </div>
+
+            {hasMoreReviews && (
+              <div className="relative mt-4">
+                <div className="blur-sm pointer-events-none select-none space-y-3">
+                  {lockedReviews.map((review) => (
+                    <ReviewCard
+                      key={review.id}
+                      review={review}
+                      canSmartReply={false}
+                      onMarkAnswered={() => {}}
+                      onSmartReply={() => {}}
+                      isMarkingAnswered={false}
+                    />
+                  ))}
+                </div>
+                <div
+                  className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl"
+                  style={{
+                    background: 'linear-gradient(to top, var(--surface-card) 60%, transparent)',
+                  }}
+                >
+                  <Sparkles className="w-6 h-6 mb-2" style={{ color: 'var(--accent-primary)' }} />
+                  <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                    Ver todas as avaliações requer upgrade
+                  </p>
+                  <p className="text-xs mt-1 mb-3" style={{ color: 'var(--text-muted)' }}>
+                    O plano Starter exibe apenas as últimas 10 avaliações
+                  </p>
+                  <Link to="/billing">
+                    <Button size="sm" variant="primary">
+                      Ver planos e fazer upgrade
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
 }
 
-// Review Card Component
-function ReviewCard({ review }: { review: ReviewWithHotel }) {
+function ReviewCard({
+  review,
+  canSmartReply,
+  onMarkAnswered,
+  onSmartReply,
+  isMarkingAnswered,
+}: {
+  review: ReviewWithHotel;
+  canSmartReply: boolean;
+  onMarkAnswered: (id: string) => void;
+  onSmartReply: (review: ReviewWithHotel) => void;
+  isMarkingAnswered: boolean;
+}) {
   const sentimentConfig = {
-    positive: { color: 'bg-green-100 text-green-700', icon: ThumbsUp },
-    neutral: { color: 'bg-yellow-100 text-yellow-700', icon: MessageSquare },
-    negative: { color: 'bg-red-100 text-red-700', icon: ThumbsDown },
+    positive: { label: 'Positiva', bg: 'rgba(16,185,129,0.12)', color: '#10b981', icon: ThumbsUp },
+    neutral: { label: 'Neutra', bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', icon: MessageSquare },
+    negative: { label: 'Negativa', bg: 'rgba(239,68,68,0.12)', color: '#ef4444', icon: ThumbsDown },
   };
 
   const config = sentimentConfig[review.sentiment];
-  const Icon = config.icon;
+  const SentIcon = config.icon;
+  const isPending = review.responseStatus === 'PENDING';
 
   return (
-    <div className="p-4 border border-hw-navy-100 rounded-lg hover:border-hw-navy-200 transition-colors">
+    <div
+      className="rounded-2xl p-4 transition-all duration-200"
+      style={{
+        backgroundColor: 'var(--surface-secondary)',
+        border: '1px solid var(--surface-border)',
+      }}
+    >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          {/* Avatar */}
-          <div className="w-10 h-10 bg-hw-navy-100 rounded-full flex items-center justify-center">
-            <User className="w-5 h-5 text-hw-navy-500" />
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: 'var(--surface-card)' }}
+          >
+            <User className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
           </div>
-
-          {/* Reviewer Info */}
           <div>
-            <p className="font-medium text-hw-navy-900">{review.reviewerName || 'Anônimo'}</p>
-            <div className="flex items-center gap-2 text-sm text-hw-navy-500">
+            <p className="font-medium" style={{ color: 'var(--text-primary)' }}>
+              {review.reviewerName || 'Anônimo'}
+            </p>
+            <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
               {review.reviewerCountry && (
                 <>
                   <MapPin className="w-3 h-3" />
@@ -463,56 +701,116 @@ function ReviewCard({ review }: { review: ReviewWithHotel }) {
           </div>
         </div>
 
-        {/* Rating & Sentiment */}
         <div className="flex items-center gap-2">
-          <span className={cn('px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1', config.color)}>
-            <Icon className="w-3 h-3" />
-            {review.sentiment === 'positive' ? 'Positiva' : review.sentiment === 'neutral' ? 'Neutra' : 'Negativa'}
+          <span
+            className="px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1"
+            style={{ backgroundColor: config.bg, color: config.color }}
+          >
+            <SentIcon className="w-3 h-3" />
+            {config.label}
           </span>
-          <span className="bg-hw-purple text-white text-sm px-2 py-1 rounded font-semibold">
+          <span
+            className="text-sm px-2 py-1 rounded-lg font-bold text-white"
+            style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+          >
             {review.rating.toFixed(1)}
           </span>
         </div>
       </div>
 
-      {/* Review Title */}
       {review.title && (
-        <h4 className="font-semibold text-hw-navy-900 mb-2">{review.title}</h4>
+        <h4 className="font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+          {review.title}
+        </h4>
       )}
 
-      {/* Review Content */}
       <div className="space-y-2">
         {review.positive && (
           <div className="flex gap-2">
-            <ThumbsUp className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-hw-navy-700">{review.positive}</p>
+            <ThumbsUp className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#10b981' }} />
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              {review.positive}
+            </p>
           </div>
         )}
         {review.negative && (
           <div className="flex gap-2">
-            <ThumbsDown className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-hw-navy-700">{review.negative}</p>
+            <ThumbsDown className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#f87171' }} />
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              {review.negative}
+            </p>
           </div>
         )}
       </div>
 
-      {/* Hotel Badge */}
-      <div className="mt-3 pt-3 border-t border-hw-navy-100">
-        <div className="flex items-center gap-2 text-sm text-hw-navy-500">
+      {/* Action row */}
+      <div
+        className="mt-3 pt-3 flex items-center justify-between flex-wrap gap-2"
+        style={{ borderTop: '1px solid var(--surface-border)' }}
+      >
+        <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
           <Building2 className="w-4 h-4" />
           {review.hotelName}
-          {review.isOwnHotel && (
-            <span className="bg-hw-purple-100 text-hw-purple text-xs px-2 py-0.5 rounded-full">
-              Meu Hotel
-            </span>
-          )}
+          {review.isOwnHotel && <span className="badge-gradient text-xs">Meu Hotel</span>}
         </div>
+
+        {review.isOwnHotel && (
+          <div className="flex items-center gap-2">
+            {isPending ? (
+              <button
+                onClick={() => onMarkAnswered(review.id)}
+                disabled={isMarkingAnswered}
+                className="text-xs px-2.5 py-1.5 rounded-lg transition-all duration-150 flex items-center gap-1 font-medium"
+                style={{
+                  border: '1px solid var(--surface-border)',
+                  color: 'var(--text-muted)',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = '#10b981';
+                  (e.currentTarget as HTMLElement).style.color = '#10b981';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = 'var(--surface-border)';
+                  (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
+                }}
+              >
+                <CheckCircle className="w-3 h-3" />
+                Marcar Respondido
+              </button>
+            ) : (
+              <span className="text-xs flex items-center gap-1 font-medium" style={{ color: '#10b981' }}>
+                <CheckCircle className="w-3 h-3" />
+                Respondido
+              </span>
+            )}
+
+            {canSmartReply ? (
+              <button
+                onClick={() => onSmartReply(review)}
+                className="text-xs px-2.5 py-1.5 rounded-lg font-medium text-white flex items-center gap-1 transition-opacity hover:opacity-90"
+                style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+              >
+                <Sparkles className="w-3 h-3" />
+                Smart Reply
+              </button>
+            ) : (
+              <button
+                disabled
+                className="text-xs px-2.5 py-1.5 rounded-lg font-medium flex items-center gap-1 cursor-not-allowed opacity-50"
+                style={{ border: '1px dashed var(--surface-border)', color: 'var(--text-muted)' }}
+                title="Disponível no plano Insight"
+              >
+                <Lock className="w-3 h-3" />
+                Smart Reply
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// AI Summary Card Component
 function AiSummaryCard({
   summary,
   isLoading,
@@ -535,11 +833,13 @@ function AiSummaryCard({
   if (isLocked) {
     return (
       <Card className="relative overflow-hidden">
-        {/* Blurred preview of the card content */}
         <div className="blur-sm pointer-events-none select-none">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-hw-purple to-indigo-600 rounded-lg flex items-center justify-center">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+              >
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <div>
@@ -550,23 +850,26 @@ function AiSummaryCard({
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="h-4 bg-hw-navy-100 rounded w-3/4" />
-              <div className="h-4 bg-hw-navy-100 rounded w-full" />
-              <div className="h-4 bg-hw-navy-100 rounded w-5/6" />
-              <div className="grid grid-cols-2 gap-4 mt-4">
-                <div className="p-4 bg-green-50 rounded-lg h-24" />
-                <div className="p-4 bg-red-50 rounded-lg h-24" />
-              </div>
+              <div className="h-4 rounded w-3/4" style={{ backgroundColor: 'var(--surface-border)' }} />
+              <div className="h-4 rounded w-full" style={{ backgroundColor: 'var(--surface-border)' }} />
+              <div className="h-4 rounded w-5/6" style={{ backgroundColor: 'var(--surface-border)' }} />
             </div>
           </CardContent>
         </div>
-        {/* Upgrade overlay */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/85 rounded-xl">
-          <div className="w-12 h-12 bg-gradient-to-br from-hw-purple to-indigo-600 rounded-xl flex items-center justify-center mb-3">
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl"
+          style={{ backgroundColor: 'rgba(30,35,55,0.92)' }}
+        >
+          <div
+            className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
+            style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+          >
             <Sparkles className="w-6 h-6 text-white" />
           </div>
-          <p className="font-semibold text-hw-navy-900 text-base mb-1">Análise IA de Avaliações</p>
-          <p className="text-sm text-hw-navy-500 mb-4 text-center max-w-xs">
+          <p className="font-semibold text-base mb-1" style={{ color: 'var(--text-primary)' }}>
+            Análise IA de Avaliações
+          </p>
+          <p className="text-sm mb-4 text-center max-w-xs" style={{ color: 'var(--text-muted)' }}>
             Disponível a partir do plano Insight — resumo automático, pontos fortes e fracos.
           </p>
           <Link to="/billing">
@@ -584,7 +887,10 @@ function AiSummaryCard({
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-hw-purple to-indigo-600 rounded-lg flex items-center justify-center">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+            >
               <Sparkles className="w-4 h-4 text-white" />
             </div>
             <div>
@@ -596,20 +902,33 @@ function AiSummaryCard({
             <select
               value={selectedHotelId || ''}
               onChange={(e) => onHotelChange(e.target.value)}
-              className="bg-white border border-hw-navy-200 rounded-lg px-3 py-1.5 text-sm text-hw-navy-900 focus:outline-none focus:ring-2 focus:ring-hw-purple"
+              className="rounded-lg px-3 py-1.5 text-sm focus:outline-none"
+              style={{
+                backgroundColor: 'var(--surface-secondary)',
+                border: '1px solid var(--surface-border)',
+                color: 'var(--text-primary)',
+              }}
             >
               {hotels.map((h) => (
                 <option key={h.id} value={h.id}>
-                  {h.name}{h.isOwn ? ' (Meu Hotel)' : ''}
+                  {h.name}
+                  {h.isOwn ? ' (Meu Hotel)' : ''}
                 </option>
               ))}
             </select>
             <button
               onClick={onRefresh}
-              className="p-2 hover:bg-hw-navy-100 rounded-lg transition-colors"
+              className="p-2 rounded-lg transition-colors"
+              style={{ color: 'var(--text-muted)' }}
               title="Gerar novo resumo"
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-card)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = '';
+              }}
             >
-              <RefreshCw className="w-4 h-4 text-hw-navy-500" />
+              <RefreshCw className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -617,50 +936,69 @@ function AiSummaryCard({
       <CardContent>
         {isLoading && (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 text-hw-purple animate-spin" />
-            <span className="ml-2 text-sm text-hw-navy-500">Analisando avaliações com IA...</span>
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-primary)' }} />
+            <span className="ml-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+              Analisando avaliações com IA...
+            </span>
           </div>
         )}
 
         {isError && !isLoading && (
-          <div className="text-center py-6 text-hw-navy-500">
+          <div className="text-center py-6" style={{ color: 'var(--text-muted)' }}>
             <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
             <p className="text-sm">Não foi possível gerar o resumo IA.</p>
-            <p className="text-xs text-hw-navy-400 mt-1">Verifique se a chave do Gemini está configurada.</p>
           </div>
         )}
 
         {summary && !isLoading && (
           <div className="space-y-4">
-            <p className="text-sm text-hw-navy-700 leading-relaxed">{summary.summary}</p>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              {summary.summary}
+            </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Strengths */}
-              <div className="p-4 bg-green-50 rounded-lg">
-                <h4 className="text-sm font-semibold text-green-800 mb-2 flex items-center gap-1">
+              <div
+                className="p-4 rounded-xl"
+                style={{
+                  backgroundColor: 'rgba(16,185,129,0.08)',
+                  border: '1px solid rgba(16,185,129,0.15)',
+                }}
+              >
+                <h4
+                  className="text-sm font-semibold mb-2 flex items-center gap-1"
+                  style={{ color: '#10b981' }}
+                >
                   <ThumbsUp className="w-4 h-4" />
                   Pontos Fortes
                 </h4>
                 <ul className="space-y-1">
                   {summary.strengths.map((s, i) => (
-                    <li key={i} className="text-sm text-green-700 flex items-start gap-2">
-                      <span className="text-green-500 mt-0.5 flex-shrink-0">+</span>
+                    <li key={i} className="text-sm flex items-start gap-2" style={{ color: 'var(--text-secondary)' }}>
+                      <span style={{ color: '#10b981', marginTop: '2px', flexShrink: 0 }}>+</span>
                       {s}
                     </li>
                   ))}
                 </ul>
               </div>
 
-              {/* Weaknesses */}
-              <div className="p-4 bg-red-50 rounded-lg">
-                <h4 className="text-sm font-semibold text-red-800 mb-2 flex items-center gap-1">
+              <div
+                className="p-4 rounded-xl"
+                style={{
+                  backgroundColor: 'rgba(239,68,68,0.08)',
+                  border: '1px solid rgba(239,68,68,0.15)',
+                }}
+              >
+                <h4
+                  className="text-sm font-semibold mb-2 flex items-center gap-1"
+                  style={{ color: '#ef4444' }}
+                >
                   <ThumbsDown className="w-4 h-4" />
                   Pontos Fracos
                 </h4>
                 <ul className="space-y-1">
                   {summary.weaknesses.map((w, i) => (
-                    <li key={i} className="text-sm text-red-700 flex items-start gap-2">
-                      <span className="text-red-500 mt-0.5 flex-shrink-0">-</span>
+                    <li key={i} className="text-sm flex items-start gap-2" style={{ color: 'var(--text-secondary)' }}>
+                      <span style={{ color: '#ef4444', marginTop: '2px', flexShrink: 0 }}>-</span>
                       {w}
                     </li>
                   ))}
@@ -669,15 +1007,23 @@ function AiSummaryCard({
             </div>
 
             {summary.trendInsight && (
-              <div className="p-3 bg-hw-purple-50 rounded-lg">
-                <p className="text-sm text-hw-purple-700">
-                  <span className="font-semibold">Insight:</span> {summary.trendInsight}
+              <div
+                className="p-3 rounded-xl"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(79,70,229,0.08), rgba(124,58,237,0.06))',
+                  border: '1px solid rgba(79,70,229,0.15)',
+                }}
+              >
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <span className="font-semibold" style={{ color: '#818cf8' }}>Insight: </span>
+                  {summary.trendInsight}
                 </p>
               </div>
             )}
 
-            <p className="text-xs text-hw-navy-400">
-              Baseado em {summary.reviewCount} avaliações. Gerado em {new Date(summary.generatedAt).toLocaleDateString('pt-BR')}.
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              Baseado em {summary.reviewCount} avaliações. Gerado em{' '}
+              {new Date(summary.generatedAt).toLocaleDateString('pt-BR')}.
             </p>
           </div>
         )}
@@ -686,18 +1032,29 @@ function AiSummaryCard({
   );
 }
 
-// Empty State Component
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center h-64 text-center">
-      <div className="w-16 h-16 bg-hw-purple-100 rounded-full flex items-center justify-center mb-4">
-        <Star className="w-8 h-8 text-hw-purple" />
+      <div
+        className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+        style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+      >
+        <Star className="w-8 h-8 text-white" />
       </div>
-      <h2 className="text-xl font-semibold text-hw-navy-900 mb-2">Nenhuma avaliação encontrada</h2>
-      <p className="text-hw-navy-500 max-w-md mb-4">
+      <h2
+        className="text-xl font-semibold mb-2"
+        style={{ color: 'var(--text-primary)', fontFamily: 'Lexend, sans-serif' }}
+      >
+        Nenhuma avaliação encontrada
+      </h2>
+      <p className="max-w-md mb-4" style={{ color: 'var(--text-muted)' }}>
         Adicione seu hotel para começar a monitorar as avaliações.
       </p>
-      <a href="/hotels" className="text-hw-purple font-medium hover:underline">
+      <a
+        href="/hotels"
+        className="font-medium hover:opacity-80 transition-opacity"
+        style={{ color: '#818cf8' }}
+      >
         Ir para Meus Hotéis
       </a>
     </div>

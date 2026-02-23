@@ -50,7 +50,6 @@ export function HotelsPage() {
   } = useQuery({
     queryKey: ['hotels'],
     queryFn: getHotels,
-    // Re-fetch periodically so we see when dataFetchedAt becomes non-null
     refetchInterval: (query) => {
       const data = query.state.data;
       if (!data) return false;
@@ -84,7 +83,7 @@ export function HotelsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-hw-purple animate-spin" />
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#818cf8' }} />
       </div>
     );
   }
@@ -93,8 +92,8 @@ export function HotelsPage() {
     return (
       <div className="text-center py-12">
         <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-        <h2 className="text-lg font-semibold text-hw-navy-900">Erro ao carregar hoteis</h2>
-        <p className="text-hw-navy-500 mt-1">Tente novamente mais tarde.</p>
+        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Erro ao carregar hoteis</h2>
+        <p className="mt-1" style={{ color: 'var(--text-muted)' }}>Tente novamente mais tarde.</p>
         <Button variant="secondary" onClick={() => refetch()} className="mt-4">
           Tentar novamente
         </Button>
@@ -107,8 +106,10 @@ export function HotelsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-hw-navy-900">Meus Hoteis</h1>
-          <p className="text-hw-navy-500 mt-1">
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)', fontFamily: "'Lexend', sans-serif" }}>
+            Meus Hoteis
+          </h1>
+          <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
             Gerencie seus hoteis e concorrentes monitorados
           </p>
         </div>
@@ -119,50 +120,58 @@ export function HotelsPage() {
       </div>
 
       {/* Plan Limits Card */}
-      <Card className="bg-gradient-to-r from-hw-purple-50 to-hw-purple-100 border border-hw-purple-200">
-        <CardContent className="flex items-center justify-between py-4">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-hw-purple rounded-lg flex items-center justify-center">
-              <Crown className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="font-semibold text-hw-navy-900">
-                Plano {plan === 'STARTER' ? 'Starter' : plan === 'INSIGHT' ? 'Insight' : 'Pro'}
-              </p>
-              <p className="text-sm text-hw-navy-600">
-                {ownHotels.length}/{limits.ownHotels} hotel(is) proprio(s) | {competitorHotels.length}/{limits.competitors} concorrente(s)
-              </p>
-            </div>
+      <div
+        className="rounded-2xl p-4 flex items-center justify-between"
+        style={{
+          background: 'linear-gradient(135deg, rgba(79,70,229,0.15), rgba(124,58,237,0.1))',
+          border: '1px solid rgba(79,70,229,0.3)',
+        }}
+      >
+        <div className="flex items-center gap-4">
+          <div
+            className="w-10 h-10 rounded-lg flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+          >
+            <Crown className="w-5 h-5 text-white" />
           </div>
-          {(ownHotels.length >= limits.ownHotels || competitorHotels.length >= limits.competitors) && (
-            <Link to="/billing">
-              <Button variant="primary" size="sm">
-                Fazer upgrade
-              </Button>
-            </Link>
-          )}
-        </CardContent>
-      </Card>
+          <div>
+            <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Plano {plan === 'STARTER' ? 'Starter' : plan === 'INSIGHT' ? 'Insight' : 'Pro'}
+            </p>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              {ownHotels.length}/{limits.ownHotels} hotel(is) proprio(s) | {competitorHotels.length}/{limits.competitors} concorrente(s)
+            </p>
+          </div>
+        </div>
+        {(ownHotels.length >= limits.ownHotels || competitorHotels.length >= limits.competitors) && (
+          <Link to="/billing">
+            <Button variant="primary" size="sm">
+              Fazer upgrade
+            </Button>
+          </Link>
+        )}
+      </div>
 
       {/* Own Hotels Section */}
       <div>
         <div className="flex items-center gap-2 mb-4">
-          <Building2 className="w-5 h-5 text-hw-purple" />
-          <h2 className="text-lg font-semibold text-hw-navy-900">Meu(s) Hotel(is)</h2>
-          <span className="text-sm text-hw-navy-500">({ownHotels.length}/{limits.ownHotels})</span>
+          <Building2 className="w-5 h-5" style={{ color: '#818cf8' }} />
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Meu(s) Hotel(is)</h2>
+          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>({ownHotels.length}/{limits.ownHotels})</span>
         </div>
 
         {ownHotels.length === 0 ? (
-          <Card className="border-dashed border-2 border-hw-navy-200">
-            <CardContent className="text-center py-8">
-              <Building2 className="w-12 h-12 text-hw-navy-300 mx-auto mb-3" />
-              <p className="text-hw-navy-600 mb-4">Adicione seu hotel para comecar a monitorar</p>
-              <Button variant="primary" onClick={() => setIsModalOpen(true)} disabled={!canAddOwnHotel}>
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar Meu Hotel
-              </Button>
-            </CardContent>
-          </Card>
+          <div
+            className="rounded-2xl p-8 text-center"
+            style={{ border: '2px dashed var(--surface-border)' }}
+          >
+            <Building2 className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
+            <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>Adicione seu hotel para comecar a monitorar</p>
+            <Button variant="primary" onClick={() => setIsModalOpen(true)} disabled={!canAddOwnHotel}>
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar Meu Hotel
+            </Button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {ownHotels.map(hotel => (
@@ -180,22 +189,23 @@ export function HotelsPage() {
       {/* Competitors Section */}
       <div>
         <div className="flex items-center gap-2 mb-4">
-          <Users className="w-5 h-5 text-hw-purple" />
-          <h2 className="text-lg font-semibold text-hw-navy-900">Concorrentes</h2>
-          <span className="text-sm text-hw-navy-500">({competitorHotels.length}/{limits.competitors})</span>
+          <Users className="w-5 h-5" style={{ color: '#818cf8' }} />
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Concorrentes</h2>
+          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>({competitorHotels.length}/{limits.competitors})</span>
         </div>
 
         {competitorHotels.length === 0 ? (
-          <Card className="border-dashed border-2 border-hw-navy-200">
-            <CardContent className="text-center py-8">
-              <Users className="w-12 h-12 text-hw-navy-300 mx-auto mb-3" />
-              <p className="text-hw-navy-600 mb-4">Adicione concorrentes para comparar tarifas</p>
-              <Button variant="primary" onClick={() => setIsModalOpen(true)} disabled={!canAddCompetitor}>
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar Concorrente
-              </Button>
-            </CardContent>
-          </Card>
+          <div
+            className="rounded-2xl p-8 text-center"
+            style={{ border: '2px dashed var(--surface-border)' }}
+          >
+            <Users className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
+            <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>Adicione concorrentes para comparar tarifas</p>
+            <Button variant="primary" onClick={() => setIsModalOpen(true)} disabled={!canAddCompetitor}>
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar Concorrente
+            </Button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {competitorHotels.map(hotel => (
@@ -207,15 +217,16 @@ export function HotelsPage() {
               />
             ))}
             {canAddCompetitor && (
-              <Card
-                className="border-dashed border-2 border-hw-navy-200 cursor-pointer hover:border-hw-purple-300 hover:bg-hw-purple-50 transition-colors"
+              <div
+                className="rounded-2xl cursor-pointer transition-colors flex flex-col items-center justify-center min-h-[200px]"
+                style={{ border: '2px dashed var(--surface-border)' }}
                 onClick={() => setIsModalOpen(true)}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#4f46e5'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--surface-border)'; }}
               >
-                <CardContent className="flex flex-col items-center justify-center h-full min-h-[200px]">
-                  <Plus className="w-8 h-8 text-hw-navy-400 mb-2" />
-                  <p className="text-sm text-hw-navy-600">Adicionar concorrente</p>
-                </CardContent>
-              </Card>
+                <Plus className="w-8 h-8 mb-2" style={{ color: 'var(--text-muted)' }} />
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Adicionar concorrente</p>
+              </div>
             )}
           </div>
         )}
@@ -256,51 +267,57 @@ function HotelCard({
   };
 
   return (
-    <Card className={cn(
-      'relative overflow-hidden',
-      hotel.isOwn && 'ring-2 ring-hw-purple ring-offset-2',
-      isDeleting && 'opacity-50'
-    )}>
+    <div
+      className={cn('relative rounded-2xl overflow-hidden transition-opacity', isDeleting && 'opacity-50')}
+      style={{
+        backgroundColor: 'var(--surface-card)',
+        border: hotel.isOwn ? '2px solid #4f46e5' : '1px solid var(--surface-border)',
+        boxShadow: hotel.isOwn ? '0 0 0 4px rgba(79,70,229,0.1)' : undefined,
+      }}
+    >
       {hotel.isOwn && (
-        <div className="absolute top-2 right-2 bg-hw-purple text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+        <div
+          className="absolute top-2 right-2 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1"
+          style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+        >
           <CheckCircle className="w-3 h-3" />
           Meu Hotel
         </div>
       )}
 
-      <CardContent className="p-4">
+      <div className="p-4">
         <div className="flex gap-4">
           {/* Photo */}
-          <div className="w-20 h-20 bg-hw-navy-100 rounded-lg overflow-hidden flex-shrink-0">
+          <div
+            className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0"
+            style={{ backgroundColor: 'var(--surface-secondary)' }}
+          >
             {hotel.photoUrl ? (
               <img
                 src={hotel.photoUrl}
                 alt={hotel.name}
                 className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <Building2 className="w-8 h-8 text-hw-navy-300" />
+                <Building2 className="w-8 h-8" style={{ color: 'var(--text-muted)' }} />
               </div>
             )}
           </div>
 
           {/* Info */}
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-hw-navy-900 truncate">{hotel.name}</h3>
+            <h3 className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{hotel.name}</h3>
 
             {hotel.city && (
-              <div className="flex items-center gap-2 mt-1 text-sm text-hw-navy-500">
+              <div className="flex items-center gap-2 mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
                 <MapPin className="w-4 h-4" />
                 <span className="truncate">{hotel.city}{hotel.country ? `, ${hotel.country}` : ''}</span>
               </div>
             )}
 
             <div className="flex items-center gap-4 mt-2">
-              {/* Stars */}
               {hotel.starRating && (
                 <div className="flex items-center gap-1">
                   {Array.from({ length: hotel.starRating }).map((_, i) => (
@@ -309,28 +326,29 @@ function HotelCard({
                 </div>
               )}
 
-              {/* Rating */}
               {hotel.reviewScore && (
                 <div className="flex items-center gap-1">
-                  <span className="bg-hw-purple text-white text-xs px-1.5 py-0.5 rounded font-semibold">
+                  <span
+                    className="text-white text-xs px-1.5 py-0.5 rounded font-semibold"
+                    style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+                  >
                     {Number(hotel.reviewScore).toFixed(1)}
                   </span>
                   {hotel.reviewCount && (
-                    <span className="text-xs text-hw-navy-500">({hotel.reviewCount})</span>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>({hotel.reviewCount})</span>
                   )}
                 </div>
               )}
             </div>
 
-            {/* Fetching indicator */}
             {isFetching ? (
               <div className="flex items-center gap-2 mt-3">
-                <Loader2 className="w-3 h-3 text-hw-purple animate-spin" />
-                <span className="text-xs text-hw-purple font-medium">Coletando dados do Booking.com...</span>
+                <Loader2 className="w-3 h-3 animate-spin" style={{ color: '#818cf8' }} />
+                <span className="text-xs font-medium" style={{ color: '#818cf8' }}>Coletando dados do Booking.com...</span>
               </div>
             ) : (
               <div className="flex items-center justify-between mt-3">
-                <span className="text-xs text-hw-navy-400">
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                   Atualizado: {formatDate(hotel.lastFetchAt)}
                 </span>
 
@@ -340,7 +358,10 @@ function HotelCard({
                       href={hotel.bookingUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-hw-navy-400 hover:text-hw-purple transition-colors"
+                      className="transition-colors"
+                      style={{ color: 'var(--text-muted)' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#818cf8'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
                     >
                       <ExternalLink className="w-4 h-4" />
                     </a>
@@ -348,7 +369,10 @@ function HotelCard({
                   <button
                     onClick={onRemove}
                     disabled={isDeleting}
-                    className="text-hw-navy-400 hover:text-red-500 transition-colors"
+                    className="transition-colors"
+                    style={{ color: 'var(--text-muted)' }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -357,12 +381,12 @@ function HotelCard({
             )}
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
-// Add Hotel Modal Component — supports URL and City search modes
+// Add Hotel Modal Component
 function AddHotelModal({
   onClose,
   canAddOwn,
@@ -378,17 +402,14 @@ function AddHotelModal({
   const [cityQuery, setCityQuery] = useState('');
   const [isOwn, setIsOwn] = useState(canAddOwn);
   const [error, setError] = useState('');
-  // URL search results
   const [searchResults, setSearchResults] = useState<HotelSearchResult[]>([]);
   const [selectedHotel, setSelectedHotel] = useState<HotelSearchResult | null>(null);
-  // City search results
   const [locationResults, setLocationResults] = useState<LocationSearchResult[]>([]);
   const [hotelResults, setHotelResults] = useState<HotelInLocationResult[]>([]);
   const [selectedCityHotel, setSelectedCityHotel] = useState<HotelInLocationResult | null>(null);
   const [selectedLocationName, setSelectedLocationName] = useState('');
   const queryClient = useQueryClient();
 
-  // URL search mutation (existing)
   const searchMutation = useMutation({
     mutationFn: searchHotelApi,
     onSuccess: (results) => {
@@ -406,7 +427,6 @@ function AddHotelModal({
     },
   });
 
-  // City location search mutation
   const locationSearchMutation = useMutation({
     mutationFn: searchLocationsApi,
     onSuccess: (results) => {
@@ -424,7 +444,6 @@ function AddHotelModal({
     },
   });
 
-  // Hotels in location mutation
   const hotelsInLocationMutation = useMutation({
     mutationFn: ({ destId, destType }: { destId: string; destType: string }) =>
       searchHotelsInLocationApi(destId, destType),
@@ -543,25 +562,45 @@ function AddHotelModal({
 
   const showBackButton = step !== 'search';
 
+  const inputStyle: React.CSSProperties = {
+    backgroundColor: 'var(--surface-secondary)',
+    border: '1px solid var(--surface-border)',
+    color: 'var(--text-primary)',
+    borderRadius: 8,
+    padding: '8px 12px',
+    width: '100%',
+    fontSize: 14,
+    outline: 'none',
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div
+        className="rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col"
+        style={{ backgroundColor: 'var(--surface-card)', border: '1px solid var(--surface-border)' }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-hw-navy-100">
+        <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--surface-border)' }}>
           <div className="flex items-center gap-2">
             {showBackButton && (
               <button
                 onClick={handleBack}
-                className="text-hw-navy-400 hover:text-hw-navy-600"
+                className="transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
             )}
-            <h2 className="text-lg font-semibold text-hw-navy-900">{stepTitle()}</h2>
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{stepTitle()}</h2>
           </div>
           <button
             onClick={onClose}
-            className="text-hw-navy-400 hover:text-hw-navy-600"
+            className="transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
           >
             <X className="w-5 h-5" />
           </button>
@@ -572,7 +611,7 @@ function AddHotelModal({
           <div className="p-4 space-y-4">
             {/* Hotel Type */}
             <div>
-              <label className="block text-sm font-medium text-hw-navy-700 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
                 Tipo de Hotel
               </label>
               <div className="grid grid-cols-2 gap-3">
@@ -580,57 +619,55 @@ function AddHotelModal({
                   type="button"
                   onClick={() => setIsOwn(true)}
                   disabled={!canAddOwn}
-                  className={cn(
-                    'p-3 rounded-lg border-2 text-left transition-colors',
-                    isOwn
-                      ? 'border-hw-purple bg-hw-purple-50'
-                      : 'border-hw-navy-200 hover:border-hw-navy-300',
-                    !canAddOwn && 'opacity-50 cursor-not-allowed'
-                  )}
+                  className={cn('p-3 rounded-lg border-2 text-left transition-colors', !canAddOwn && 'opacity-50 cursor-not-allowed')}
+                  style={{
+                    borderColor: isOwn ? '#4f46e5' : 'var(--surface-border)',
+                    backgroundColor: isOwn ? 'rgba(79,70,229,0.1)' : 'var(--surface-secondary)',
+                  }}
                 >
-                  <Building2 className={cn('w-5 h-5 mb-1', isOwn ? 'text-hw-purple' : 'text-hw-navy-400')} />
-                  <p className={cn('font-medium', isOwn ? 'text-hw-purple' : 'text-hw-navy-700')}>
+                  <Building2 className="w-5 h-5 mb-1" style={{ color: isOwn ? '#818cf8' : 'var(--text-muted)' }} />
+                  <p className="font-medium text-sm" style={{ color: isOwn ? '#818cf8' : 'var(--text-secondary)' }}>
                     Meu Hotel
                   </p>
-                  <p className="text-xs text-hw-navy-500">Seu proprio hotel</p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Seu proprio hotel</p>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setIsOwn(false)}
                   disabled={!canAddCompetitor}
-                  className={cn(
-                    'p-3 rounded-lg border-2 text-left transition-colors',
-                    !isOwn
-                      ? 'border-hw-purple bg-hw-purple-50'
-                      : 'border-hw-navy-200 hover:border-hw-navy-300',
-                    !canAddCompetitor && 'opacity-50 cursor-not-allowed'
-                  )}
+                  className={cn('p-3 rounded-lg border-2 text-left transition-colors', !canAddCompetitor && 'opacity-50 cursor-not-allowed')}
+                  style={{
+                    borderColor: !isOwn ? '#4f46e5' : 'var(--surface-border)',
+                    backgroundColor: !isOwn ? 'rgba(79,70,229,0.1)' : 'var(--surface-secondary)',
+                  }}
                 >
-                  <Users className={cn('w-5 h-5 mb-1', !isOwn ? 'text-hw-purple' : 'text-hw-navy-400')} />
-                  <p className={cn('font-medium', !isOwn ? 'text-hw-purple' : 'text-hw-navy-700')}>
+                  <Users className="w-5 h-5 mb-1" style={{ color: !isOwn ? '#818cf8' : 'var(--text-muted)' }} />
+                  <p className="font-medium text-sm" style={{ color: !isOwn ? '#818cf8' : 'var(--text-secondary)' }}>
                     Concorrente
                   </p>
-                  <p className="text-xs text-hw-navy-500">Hotel para monitorar</p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Hotel para monitorar</p>
                 </button>
               </div>
             </div>
 
             {/* Search Mode Tabs */}
             <div>
-              <label className="block text-sm font-medium text-hw-navy-700 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
                 Como deseja buscar?
               </label>
-              <div className="flex rounded-lg border border-hw-navy-200 overflow-hidden">
+              <div
+                className="flex rounded-lg overflow-hidden"
+                style={{ border: '1px solid var(--surface-border)' }}
+              >
                 <button
                   type="button"
                   onClick={() => handleSwitchMode('url')}
-                  className={cn(
-                    'flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors',
-                    searchMode === 'url'
-                      ? 'bg-hw-purple text-white'
-                      : 'bg-white text-hw-navy-600 hover:bg-hw-navy-50'
-                  )}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors"
+                  style={{
+                    backgroundColor: searchMode === 'url' ? '#4f46e5' : 'var(--surface-secondary)',
+                    color: searchMode === 'url' ? '#fff' : 'var(--text-muted)',
+                  }}
                 >
                   <Link2 className="w-4 h-4" />
                   Por Link
@@ -638,12 +675,11 @@ function AddHotelModal({
                 <button
                   type="button"
                   onClick={() => handleSwitchMode('city')}
-                  className={cn(
-                    'flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors',
-                    searchMode === 'city'
-                      ? 'bg-hw-purple text-white'
-                      : 'bg-white text-hw-navy-600 hover:bg-hw-navy-50'
-                  )}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors"
+                  style={{
+                    backgroundColor: searchMode === 'city' ? '#4f46e5' : 'var(--surface-secondary)',
+                    color: searchMode === 'city' ? '#fff' : 'var(--text-muted)',
+                  }}
                 >
                   <Globe className="w-4 h-4" />
                   Por Cidade
@@ -655,7 +691,7 @@ function AddHotelModal({
             {searchMode === 'url' && (
               <form onSubmit={handleUrlSearch} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-hw-navy-700 mb-2">
+                  <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
                     URL do Booking.com
                   </label>
                   <input
@@ -663,16 +699,16 @@ function AddHotelModal({
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                     placeholder="https://www.booking.com/hotel/br/..."
-                    className="w-full px-3 py-2 border border-hw-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw-purple focus:border-transparent"
+                    style={inputStyle}
                     required
                   />
-                  <p className="text-xs text-hw-navy-500 mt-1">
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
                     Cole a URL completa da pagina do hotel no Booking.com
                   </p>
                 </div>
 
                 {error && (
-                  <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+                  <div className="flex items-center gap-2 p-3 rounded-lg text-sm" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
                     {error}
                   </div>
@@ -694,7 +730,7 @@ function AddHotelModal({
             {searchMode === 'city' && (
               <form onSubmit={handleCitySearch} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-hw-navy-700 mb-2">
+                  <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
                     Cidade ou Regiao
                   </label>
                   <input
@@ -702,17 +738,17 @@ function AddHotelModal({
                     value={cityQuery}
                     onChange={(e) => setCityQuery(e.target.value)}
                     placeholder="Ex: Goiania, Rio de Janeiro, Gramado..."
-                    className="w-full px-3 py-2 border border-hw-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-hw-purple focus:border-transparent"
+                    style={inputStyle}
                     required
                     minLength={2}
                   />
-                  <p className="text-xs text-hw-navy-500 mt-1">
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
                     Digite o nome da cidade ou regiao para buscar hoteis
                   </p>
                 </div>
 
                 {error && (
-                  <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+                  <div className="flex items-center gap-2 p-3 rounded-lg text-sm" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
                     {error}
                   </div>
@@ -736,7 +772,7 @@ function AddHotelModal({
         {step === 'select' && (
           <div className="flex flex-col flex-1 overflow-hidden">
             <div className="p-4 overflow-y-auto flex-1 space-y-3">
-              <p className="text-sm text-hw-navy-500 mb-3">
+              <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
                 Encontramos {searchResults.length} resultado(s). Selecione o hotel correto:
               </p>
 
@@ -745,42 +781,30 @@ function AddHotelModal({
                   key={result.dest_id}
                   type="button"
                   onClick={() => setSelectedHotel(result)}
-                  className={cn(
-                    'w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-colors',
-                    selectedHotel?.dest_id === result.dest_id
-                      ? 'border-hw-purple bg-hw-purple-50'
-                      : 'border-hw-navy-200 hover:border-hw-navy-300'
-                  )}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-colors"
+                  style={{
+                    borderColor: selectedHotel?.dest_id === result.dest_id ? '#4f46e5' : 'var(--surface-border)',
+                    backgroundColor: selectedHotel?.dest_id === result.dest_id ? 'rgba(79,70,229,0.1)' : 'var(--surface-secondary)',
+                  }}
                 >
-                  <div className="w-14 h-14 bg-hw-navy-100 rounded-lg overflow-hidden flex-shrink-0">
+                  <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0" style={{ backgroundColor: 'var(--surface-card)' }}>
                     {result.image_url ? (
-                      <img
-                        src={result.image_url}
-                        alt={result.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
+                      <img src={result.image_url} alt={result.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Building2 className="w-6 h-6 text-hw-navy-300" />
+                        <Building2 className="w-6 h-6" style={{ color: 'var(--text-muted)' }} />
                       </div>
                     )}
                   </div>
-
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-hw-navy-900 truncate">{result.name}</p>
-                    <div className="flex items-center gap-1 mt-0.5 text-sm text-hw-navy-500">
+                    <p className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{result.name}</p>
+                    <div className="flex items-center gap-1 mt-0.5 text-sm" style={{ color: 'var(--text-muted)' }}>
                       <MapPin className="w-3 h-3 flex-shrink-0" />
-                      <span className="truncate">
-                        {result.city_name}{result.region ? `, ${result.region}` : ''}{result.country ? `, ${result.country}` : ''}
-                      </span>
+                      <span className="truncate">{result.city_name}{result.region ? `, ${result.region}` : ''}{result.country ? `, ${result.country}` : ''}</span>
                     </div>
                   </div>
-
                   {selectedHotel?.dest_id === result.dest_id && (
-                    <CheckCircle className="w-5 h-5 text-hw-purple flex-shrink-0" />
+                    <CheckCircle className="w-5 h-5 flex-shrink-0" style={{ color: '#818cf8' }} />
                   )}
                 </button>
               ))}
@@ -788,38 +812,25 @@ function AddHotelModal({
 
             {error && (
               <div className="px-4">
-                <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+                <div className="flex items-center gap-2 p-3 rounded-lg text-sm" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   {error}
                 </div>
               </div>
             )}
 
-            <div className="flex gap-3 p-4 border-t border-hw-navy-100">
-              <Button type="button" variant="secondary" onClick={handleBack} className="flex-1">
-                Voltar
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleConfirmUrl}
-                disabled={!selectedHotel}
-                isLoading={createMutation.isPending}
-                className="flex-1"
-              >
-                Confirmar
-              </Button>
+            <div className="flex gap-3 p-4" style={{ borderTop: '1px solid var(--surface-border)' }}>
+              <Button type="button" variant="secondary" onClick={handleBack} className="flex-1">Voltar</Button>
+              <Button type="button" variant="primary" onClick={handleConfirmUrl} disabled={!selectedHotel} isLoading={createMutation.isPending} className="flex-1">Confirmar</Button>
             </div>
           </div>
         )}
 
-        {/* Step: Select location (city search flow) */}
+        {/* Step: Select location */}
         {step === 'select-location' && (
           <div className="flex flex-col flex-1 overflow-hidden">
             <div className="p-4 overflow-y-auto flex-1 space-y-3">
-              <p className="text-sm text-hw-navy-500 mb-3">
-                Selecione a cidade ou regiao:
-              </p>
+              <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>Selecione a cidade ou regiao:</p>
 
               {locationResults.map((location) => (
                 <button
@@ -827,53 +838,48 @@ function AddHotelModal({
                   type="button"
                   onClick={() => handleSelectLocation(location)}
                   disabled={hotelsInLocationMutation.isPending}
-                  className={cn(
-                    'w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-colors',
-                    'border-hw-navy-200 hover:border-hw-purple hover:bg-hw-purple-50',
-                    hotelsInLocationMutation.isPending && 'opacity-50'
-                  )}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-colors"
+                  style={{
+                    borderColor: 'var(--surface-border)',
+                    backgroundColor: 'var(--surface-secondary)',
+                    opacity: hotelsInLocationMutation.isPending ? 0.5 : 1,
+                  }}
+                  onMouseEnter={(e) => { if (!hotelsInLocationMutation.isPending) (e.currentTarget as HTMLElement).style.borderColor = '#4f46e5'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--surface-border)'; }}
                 >
-                  <div className="w-10 h-10 bg-hw-purple-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Globe className="w-5 h-5 text-hw-purple" />
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(79,70,229,0.15)' }}>
+                    <Globe className="w-5 h-5" style={{ color: '#818cf8' }} />
                   </div>
-
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-hw-navy-900 truncate">{location.name}</p>
-                    <div className="flex items-center gap-1 mt-0.5 text-sm text-hw-navy-500">
+                    <p className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{location.name}</p>
+                    <div className="flex items-center gap-1 mt-0.5 text-sm" style={{ color: 'var(--text-muted)' }}>
                       <MapPin className="w-3 h-3 flex-shrink-0" />
-                      <span className="truncate">
-                        {location.region ? `${location.region}, ` : ''}{location.country}
-                      </span>
+                      <span className="truncate">{location.region ? `${location.region}, ` : ''}{location.country}</span>
                     </div>
                   </div>
-
-                  <div className="text-right flex-shrink-0">
-                    <span className="text-xs text-hw-navy-500">{location.nr_hotels} hoteis</span>
-                  </div>
+                  <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{location.nr_hotels} hoteis</span>
                 </button>
               ))}
 
               {hotelsInLocationMutation.isPending && (
                 <div className="flex items-center justify-center py-4 gap-2">
-                  <Loader2 className="w-5 h-5 text-hw-purple animate-spin" />
-                  <span className="text-sm text-hw-navy-500">Buscando hoteis...</span>
+                  <Loader2 className="w-5 h-5 animate-spin" style={{ color: '#818cf8' }} />
+                  <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Buscando hoteis...</span>
                 </div>
               )}
             </div>
 
             {error && (
               <div className="px-4">
-                <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+                <div className="flex items-center gap-2 p-3 rounded-lg text-sm" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   {error}
                 </div>
               </div>
             )}
 
-            <div className="flex gap-3 p-4 border-t border-hw-navy-100">
-              <Button type="button" variant="secondary" onClick={handleBack} className="flex-1">
-                Voltar
-              </Button>
+            <div className="flex gap-3 p-4" style={{ borderTop: '1px solid var(--surface-border)' }}>
+              <Button type="button" variant="secondary" onClick={handleBack} className="flex-1">Voltar</Button>
             </div>
           </div>
         )}
@@ -882,46 +888,33 @@ function AddHotelModal({
         {step === 'select-hotel' && (
           <div className="flex flex-col flex-1 overflow-hidden">
             <div className="p-4 overflow-y-auto flex-1 space-y-3">
-              <p className="text-sm text-hw-navy-500 mb-3">
-                {hotelResults.length} hotel(is) encontrado(s). Selecione:
-              </p>
+              <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>{hotelResults.length} hotel(is) encontrado(s). Selecione:</p>
 
               {hotelResults.map((hotel) => (
                 <button
                   key={hotel.hotel_id}
                   type="button"
                   onClick={() => setSelectedCityHotel(hotel)}
-                  className={cn(
-                    'w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-colors',
-                    selectedCityHotel?.hotel_id === hotel.hotel_id
-                      ? 'border-hw-purple bg-hw-purple-50'
-                      : 'border-hw-navy-200 hover:border-hw-navy-300'
-                  )}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-colors"
+                  style={{
+                    borderColor: selectedCityHotel?.hotel_id === hotel.hotel_id ? '#4f46e5' : 'var(--surface-border)',
+                    backgroundColor: selectedCityHotel?.hotel_id === hotel.hotel_id ? 'rgba(79,70,229,0.1)' : 'var(--surface-secondary)',
+                  }}
                 >
-                  <div className="w-14 h-14 bg-hw-navy-100 rounded-lg overflow-hidden flex-shrink-0">
+                  <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0" style={{ backgroundColor: 'var(--surface-card)' }}>
                     {hotel.photo_url ? (
-                      <img
-                        src={hotel.photo_url}
-                        alt={hotel.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
+                      <img src={hotel.photo_url} alt={hotel.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Building2 className="w-6 h-6 text-hw-navy-300" />
+                        <Building2 className="w-6 h-6" style={{ color: 'var(--text-muted)' }} />
                       </div>
                     )}
                   </div>
-
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-hw-navy-900 truncate">{hotel.name}</p>
-                    <div className="flex items-center gap-1 mt-0.5 text-sm text-hw-navy-500">
+                    <p className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{hotel.name}</p>
+                    <div className="flex items-center gap-1 mt-0.5 text-sm" style={{ color: 'var(--text-muted)' }}>
                       <MapPin className="w-3 h-3 flex-shrink-0" />
-                      <span className="truncate">
-                        {hotel.city}{hotel.country ? `, ${hotel.country}` : ''}
-                      </span>
+                      <span className="truncate">{hotel.city}{hotel.country ? `, ${hotel.country}` : ''}</span>
                     </div>
                     <div className="flex items-center gap-3 mt-1">
                       {hotel.star_rating > 0 && (
@@ -932,18 +925,15 @@ function AddHotelModal({
                         </div>
                       )}
                       {hotel.review_score > 0 && (
-                        <span className="bg-hw-purple text-white text-xs px-1.5 py-0.5 rounded font-semibold">
+                        <span className="text-white text-xs px-1.5 py-0.5 rounded font-semibold" style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}>
                           {hotel.review_score.toFixed(1)}
                         </span>
                       )}
-                      {hotel.distance && (
-                        <span className="text-xs text-hw-navy-400">{hotel.distance}</span>
-                      )}
+                      {hotel.distance && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{hotel.distance}</span>}
                     </div>
                   </div>
-
                   {selectedCityHotel?.hotel_id === hotel.hotel_id && (
-                    <CheckCircle className="w-5 h-5 text-hw-purple flex-shrink-0" />
+                    <CheckCircle className="w-5 h-5 flex-shrink-0" style={{ color: '#818cf8' }} />
                   )}
                 </button>
               ))}
@@ -951,27 +941,16 @@ function AddHotelModal({
 
             {error && (
               <div className="px-4">
-                <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+                <div className="flex items-center gap-2 p-3 rounded-lg text-sm" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   {error}
                 </div>
               </div>
             )}
 
-            <div className="flex gap-3 p-4 border-t border-hw-navy-100">
-              <Button type="button" variant="secondary" onClick={handleBack} className="flex-1">
-                Voltar
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleConfirmCity}
-                disabled={!selectedCityHotel}
-                isLoading={createMutation.isPending}
-                className="flex-1"
-              >
-                Confirmar
-              </Button>
+            <div className="flex gap-3 p-4" style={{ borderTop: '1px solid var(--surface-border)' }}>
+              <Button type="button" variant="secondary" onClick={handleBack} className="flex-1">Voltar</Button>
+              <Button type="button" variant="primary" onClick={handleConfirmCity} disabled={!selectedCityHotel} isLoading={createMutation.isPending} className="flex-1">Confirmar</Button>
             </div>
           </div>
         )}

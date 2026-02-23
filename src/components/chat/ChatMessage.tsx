@@ -1,5 +1,4 @@
 import { Sparkles } from 'lucide-react';
-import { cn } from '../../lib/utils';
 import type { ChatMessageData } from '../../services/api';
 
 interface ChatMessageProps {
@@ -39,19 +38,31 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === 'USER';
 
   return (
-    <div className={cn('flex gap-2 mb-3', isUser ? 'justify-end' : 'justify-start')}>
+    <div className={`flex gap-2 mb-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
       {!isUser && (
-        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-hw-purple to-indigo-600 flex items-center justify-center flex-shrink-0 mt-1">
+        <div
+          className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
+          style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+        >
           <Sparkles className="w-3.5 h-3.5 text-white" />
         </div>
       )}
       <div
-        className={cn(
-          'rounded-2xl px-4 py-2.5 max-w-[85%] text-sm leading-relaxed',
+        className="rounded-2xl px-4 py-2.5 max-w-[85%] text-sm leading-relaxed"
+        style={
           isUser
-            ? 'bg-hw-purple text-white rounded-br-md'
-            : 'bg-white text-hw-navy-800 border border-hw-navy-200 rounded-bl-md shadow-sm',
-        )}
+            ? {
+                background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                color: '#fff',
+                borderBottomRightRadius: '6px',
+              }
+            : {
+                backgroundColor: 'var(--surface-card)',
+                border: '1px solid var(--surface-border)',
+                color: 'var(--text-secondary)',
+                borderBottomLeftRadius: '6px',
+              }
+        }
       >
         {isUser ? (
           <p className="whitespace-pre-wrap">{message.content}</p>
@@ -61,7 +72,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
               // Headings: ### or ##
               if (/^#{1,3}\s+/.test(line)) {
                 return (
-                  <p key={i} className="font-semibold mt-2 first:mt-0">
+                  <p key={i} className="font-semibold mt-2 first:mt-0" style={{ color: 'var(--text-primary)' }}>
                     {parseInline(line.replace(/^#{1,3}\s+/, ''))}
                   </p>
                 );
@@ -70,8 +81,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
               if (line.startsWith('- ') || line.startsWith('• ') || /^\*\s+/.test(line)) {
                 const content = line.replace(/^[-•*]\s+/, '');
                 return (
-                  <p key={i} className="pl-3 relative before:content-['•'] before:absolute before:left-0 before:text-hw-purple">
-                    {parseInline(content)}
+                  <p key={i} className="pl-3 relative before:content-['•'] before:absolute before:left-0" style={{ '--tw-content': '"•"' } as React.CSSProperties}>
+                    <span style={{ color: '#818cf8', position: 'absolute', left: 0 }}>•</span>
+                    <span style={{ paddingLeft: '12px', display: 'inline-block' }}>{parseInline(content)}</span>
                   </p>
                 );
               }
@@ -81,7 +93,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 const content = line.replace(/^\d+[.)]\s+/, '');
                 return (
                   <p key={i} className="pl-4 relative">
-                    <span className="absolute left-0 text-hw-purple font-medium">{num}.</span>
+                    <span className="absolute left-0 font-medium" style={{ color: '#818cf8' }}>{num}.</span>
                     {parseInline(content)}
                   </p>
                 );
@@ -99,14 +111,23 @@ export function ChatMessage({ message }: ChatMessageProps) {
 export function TypingIndicator() {
   return (
     <div className="flex gap-2 mb-3 justify-start">
-      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-hw-purple to-indigo-600 flex items-center justify-center flex-shrink-0 mt-1">
+      <div
+        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
+        style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+      >
         <Sparkles className="w-3.5 h-3.5 text-white" />
       </div>
-      <div className="bg-white border border-hw-navy-200 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
+      <div
+        className="rounded-2xl rounded-bl-md px-4 py-3"
+        style={{
+          backgroundColor: 'var(--surface-card)',
+          border: '1px solid var(--surface-border)',
+        }}
+      >
         <div className="flex gap-1.5">
-          <span className="w-2 h-2 bg-hw-navy-300 rounded-full animate-bounce [animation-delay:0ms]" />
-          <span className="w-2 h-2 bg-hw-navy-300 rounded-full animate-bounce [animation-delay:150ms]" />
-          <span className="w-2 h-2 bg-hw-navy-300 rounded-full animate-bounce [animation-delay:300ms]" />
+          <span className="w-2 h-2 rounded-full animate-bounce [animation-delay:0ms]" style={{ backgroundColor: 'var(--text-muted)' }} />
+          <span className="w-2 h-2 rounded-full animate-bounce [animation-delay:150ms]" style={{ backgroundColor: 'var(--text-muted)' }} />
+          <span className="w-2 h-2 rounded-full animate-bounce [animation-delay:300ms]" style={{ backgroundColor: 'var(--text-muted)' }} />
         </div>
       </div>
     </div>

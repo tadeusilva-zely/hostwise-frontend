@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
@@ -38,6 +38,11 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import Joyride, { type CallBackProps, STATUS } from 'react-joyride';
+import { useTour } from '../../contexts/TourContext';
+import { analyticsSteps } from '../../tour/steps/analytics';
+import { TourTooltip } from '../../tour/TourTooltip';
+import { tourStyles } from '../../tour/tourStyles';
 
 type TimeRange = '7d' | '30d' | '90d';
 
@@ -122,6 +127,19 @@ export function AnalyticsPage() {
   const competitorHotels = hotelsData?.competitorHotels || [];
   const canCompare = competitorHotels.length > 0;
 
+  const { isRunning, currentPage, stopTour, markTourSeen } = useTour();
+
+  const handleTourCallback = useCallback(
+    (data: CallBackProps) => {
+      const { status } = data;
+      if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+        stopTour();
+        markTourSeen('analytics');
+      }
+    },
+    [stopTour, markTourSeen]
+  );
+
   const handleCategoryClick = (id: string, name: string) => {
     if (selectedCategoryId === id) {
       setSelectedCategoryId(null);
@@ -140,13 +158,29 @@ export function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Analytics"
-        description="Tendências de reputação, análise por categoria e alertas inteligentes."
+      <Joyride
+        steps={analyticsSteps}
+        run={isRunning && currentPage === 'analytics'}
+        continuous
+        showSkipButton
+        scrollToFirstStep
+        scrollOffset={80}
+        spotlightClicks
+        disableOverlayClose
+        tooltipComponent={TourTooltip}
+        styles={tourStyles}
+        callback={handleTourCallback}
       />
 
+      <div data-tour="analytics-header">
+        <PageHeader
+          title="Analytics"
+          description="Tendências de reputação, análise por categoria e alertas inteligentes."
+        />
+      </div>
+
       {/* Header */}
-      <div className="flex flex-col gap-4">
+      <div data-tour="analytics-source-filter" className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
           {/* Source filter checkboxes */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -200,43 +234,46 @@ export function AnalyticsPage() {
       </div>
 
       {/* ── CATEGORY ALERTS BANNER ── */}
-      {canAccessAlerts ? (
-        alertsData && alertsData.alerts.length > 0 ? (
-          <CategoryAlertsBar alerts={alertsData.alerts} />
-        ) : null
-      ) : (
-        <div
-          className="rounded-2xl p-4 flex items-center justify-between"
-          style={{
-            backgroundColor: 'var(--surface-card)',
-            border: '1px solid var(--surface-border)',
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: 'rgba(245,158,11,0.1)' }}
-            >
-              <Lock className="w-4 h-4" style={{ color: '#f59e0b' }} />
+      <div data-tour="analytics-alerts">
+        {canAccessAlerts ? (
+          alertsData && alertsData.alerts.length > 0 ? (
+            <CategoryAlertsBar alerts={alertsData.alerts} />
+          ) : null
+        ) : (
+          <div
+            className="rounded-2xl p-4 flex items-center justify-between"
+            style={{
+              backgroundColor: 'var(--surface-card)',
+              border: '1px solid var(--surface-border)',
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: 'rgba(245,158,11,0.1)' }}
+              >
+                <Lock className="w-4 h-4" style={{ color: '#f59e0b' }} />
+              </div>
+              <div>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  Alertas de categoria
+                </p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Disponível a partir do plano Insight
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                Alertas de categoria
-              </p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Disponível a partir do plano Insight
-              </p>
-            </div>
+            <Link to="/billing">
+              <Button variant="secondary" size="sm">
+                Fazer upgrade
+              </Button>
+            </Link>
           </div>
-          <Link to="/billing">
-            <Button variant="secondary" size="sm">
-              Fazer upgrade
-            </Button>
-          </Link>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ── AI SUMMARY ── */}
+      <div data-tour="analytics-ai-summary">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -375,9 +412,11 @@ export function AnalyticsPage() {
           )}
         </CardContent>
       </Card>
+      </div>
 
       {/* Competitor comparison bar */}
       {canCompare && (
+        <div data-tour="analytics-competitor-bar">
         <div
           className="flex flex-wrap items-center gap-2 p-3 rounded-xl"
           style={{
@@ -439,9 +478,11 @@ export function AnalyticsPage() {
             </>
           )}
         </div>
+        </div>
       )}
 
       {/* ── REPUTATION TIMELINE ── */}
+      <div data-tour="analytics-timeline">
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -522,9 +563,11 @@ export function AnalyticsPage() {
           )}
         </CardContent>
       </Card>
+      </div>
 
 
       {/* ── CATEGORY SCORES GRID ── */}
+      <div data-tour="analytics-categories">
       <Card>
         <CardHeader>
           <CardTitle>Pontuação por Categoria</CardTitle>
@@ -656,6 +699,7 @@ export function AnalyticsPage() {
           )}
         </CardContent>
       </Card>
+      </div>
 
     </div>
   );

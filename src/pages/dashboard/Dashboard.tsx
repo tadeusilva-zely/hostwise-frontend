@@ -617,7 +617,7 @@ export function Dashboard() {
 
           {/* ── REVIEW CHARTS ── */}
           {reviewsSummary && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div data-tour="dashboard-review-charts" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Distribuição de Sentimento</CardTitle>
@@ -902,6 +902,7 @@ export function Dashboard() {
 
           {/* ── QUICK LINK TO ANALYTICS ── */}
           <div
+            data-tour="dashboard-analytics-link"
             className="rounded-2xl p-5 flex items-center justify-between"
             style={{
               background:

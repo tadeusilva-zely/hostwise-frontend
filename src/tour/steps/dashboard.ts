@@ -16,15 +16,15 @@ export const dashboardSteps: Step[] = [
   },
   {
     target: '[data-tour="dashboard-stats"]',
-    title: 'Resumo Rápido',
-    content: 'Esses cartões mostram seus números mais importantes: quantos hotéis você monitora, quantos concorrentes acompanha, sua nota média e ocupação. Panorama instantâneo do seu negócio.',
+    title: 'Indicadores de Reputação',
+    content: 'Acompanhe sua Nota Média, Taxa de Resposta, Respostas Pendentes e a diferença em relação aos concorrentes. Panorama instantâneo da sua reputação.',
     placement: 'bottom',
   },
   {
-    target: '[data-tour="dashboard-price-position"]',
-    title: 'Posição de Preço',
-    content: 'Este cartão mostra se sua tarifa está acima, abaixo ou na média dos concorrentes. Verde = mais barato que a concorrência. Vermelho = mais caro. Use esta informação para ajustar sua precificação.',
-    placement: 'right',
+    target: '[data-tour="dashboard-review-charts"]',
+    title: 'Gráficos de Avaliações',
+    content: 'Visualize a distribuição de sentimento e compare sua nota com a dos concorrentes. Uma visão rápida da saúde da sua reputação.',
+    placement: 'bottom',
   },
   {
     target: '[data-tour="dashboard-price-chart"]',
@@ -33,21 +33,15 @@ export const dashboardSteps: Step[] = [
     placement: 'left',
   },
   {
-    target: '[data-tour="dashboard-reviews"]',
-    title: 'Resumo de Avaliações',
-    content: 'Veja sua nota média e a proporção de avaliações positivas e negativas. Uma nota alta com muitas positivas indica boa reputação online.',
-    placement: 'right',
-  },
-  {
     target: '[data-tour="dashboard-occupancy"]',
     title: 'Resumo de Ocupação',
     content: 'Monitore sua taxa de ocupação geral, com detalhamento para fins de semana e dias úteis. Compare com os concorrentes para identificar oportunidades.',
     placement: 'left',
   },
   {
-    target: '[data-tour="dashboard-quick-actions"]',
-    title: 'Ações Rápidas',
-    content: 'Acesse rapidamente as principais funcionalidades: gerenciar hotéis, analisar tarifas ou ver avaliações. Cada seção tem seu próprio tour guiado!',
+    target: '[data-tour="dashboard-analytics-link"]',
+    title: 'Analytics de Reputação',
+    content: 'Acesse a página de Analytics para ver a timeline de reputação, tendências por categoria, alertas inteligentes e análise com IA.',
     placement: 'top',
   },
   {

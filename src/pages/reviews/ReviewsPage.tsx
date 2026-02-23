@@ -244,10 +244,12 @@ export function ReviewsPage() {
         />
       )}
 
-      <PageHeader
-        title="Avaliações"
-        description="Monitore e responda as avaliações do seu hotel em todas as plataformas."
-      />
+      <div data-tour="reviews-header">
+        <PageHeader
+          title="Avaliações"
+          description="Monitore e responda as avaliações do seu hotel em todas as plataformas."
+        />
+      </div>
 
       {/* Hotel Selector */}
       <div data-tour="reviews-hotel-selector" className="flex justify-end">
@@ -262,6 +264,7 @@ export function ReviewsPage() {
       {/* Response Rate Banner */}
       {responseStats && (
         <div
+          data-tour="reviews-response-rate"
           className="rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
           style={{
             background:
@@ -326,7 +329,7 @@ export function ReviewsPage() {
       )}
 
       {/* Sentiment Cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div data-tour="reviews-sentiment-cards" className="grid grid-cols-3 gap-3">
         {[
           {
             value: 'positive' as const,

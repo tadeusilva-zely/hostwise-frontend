@@ -3,9 +3,9 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { updateTourPreferencesApi } from '../services/api';
 
-export type TourPage = 'dashboard' | 'rates' | 'reviews' | 'occupancy';
+export type TourPage = 'dashboard' | 'rates' | 'reviews' | 'occupancy' | 'analytics';
 
-const TOUR_PAGES: TourPage[] = ['dashboard', 'rates', 'reviews', 'occupancy'];
+const TOUR_PAGES: TourPage[] = ['dashboard', 'rates', 'reviews', 'occupancy', 'analytics'];
 
 interface TourPreferencesState {
   seen: Record<TourPage, boolean>;
@@ -35,30 +35,29 @@ export const pathToPage: Record<string, TourPage> = {
   '/rates': 'rates',
   '/reviews': 'reviews',
   '/occupancy': 'occupancy',
+  '/analytics': 'analytics',
 };
 
 const DEFAULT_PREFERENCES: TourPreferencesState = {
-  seen: { dashboard: false, rates: false, reviews: false, occupancy: false },
-  dismissCount: { dashboard: 0, rates: 0, reviews: 0, occupancy: 0 },
+  seen: { dashboard: false, rates: false, reviews: false, occupancy: false, analytics: false },
+  dismissCount: { dashboard: 0, rates: 0, reviews: 0, occupancy: 0, analytics: 0 },
 };
 
-function getCooldownExpiry(page: TourPage): Date | null {
+function getGlobalCooldownExpiry(): Date | null {
   try {
     const raw = JSON.parse(localStorage.getItem(COOLDOWN_STORAGE_KEY) || '{}');
-    const expiry = raw[page];
+    const expiry = raw._global;
     return expiry ? new Date(expiry) : null;
   } catch {
     return null;
   }
 }
 
-function setCooldownExpiry(page: TourPage): void {
+function setGlobalCooldownExpiry(): void {
   try {
-    const raw = JSON.parse(localStorage.getItem(COOLDOWN_STORAGE_KEY) || '{}');
     const expiry = new Date();
     expiry.setHours(expiry.getHours() + COOLDOWN_HOURS);
-    raw[page] = expiry.toISOString();
-    localStorage.setItem(COOLDOWN_STORAGE_KEY, JSON.stringify(raw));
+    localStorage.setItem(COOLDOWN_STORAGE_KEY, JSON.stringify({ _global: expiry.toISOString() }));
   } catch {
     // Silently fail if localStorage is unavailable
   }
@@ -146,7 +145,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const dismissTour = useCallback((page: TourPage) => {
-    setCooldownExpiry(page);
+    setGlobalCooldownExpiry();
     setPreferences(prev => {
       const newCount = (prev.dismissCount[page] || 0) + 1;
       const updated = {
@@ -160,15 +159,20 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
   const shouldOfferTour = useCallback((page: TourPage) => {
     if (preferences.seen[page]) return false;
-    if ((preferences.dismissCount[page] || 0) >= 3) return false;
-    const cooldownExpiry = getCooldownExpiry(page);
+    // Global dismiss count: sum of all pages
+    const totalDismisses = Object.values(preferences.dismissCount).reduce((sum, c) => sum + (c || 0), 0);
+    if (totalDismisses >= 3) return false;
+    // Global cooldown: any dismiss triggers cooldown for all pages
+    const cooldownExpiry = getGlobalCooldownExpiry();
     if (cooldownExpiry && new Date() < cooldownExpiry) return false;
     return true;
   }, [preferences]);
 
-  const hasPendingTours = TOUR_PAGES.some(
-    page => !preferences.seen[page] && (preferences.dismissCount[page] || 0) >= 3
-  );
+  const hasPendingTours = TOUR_PAGES.some(page => {
+    if (preferences.seen[page]) return false;
+    const totalDismisses = Object.values(preferences.dismissCount).reduce((sum, c) => sum + (c || 0), 0);
+    return totalDismisses >= 3;
+  });
 
   return (
     <TourContext.Provider value={{

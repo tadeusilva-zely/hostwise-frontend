@@ -174,10 +174,11 @@ export function Dashboard() {
         )
       )
     : 0;
+  const isPromoTrial = user?.plan !== 'STARTER' && user?.isTrialActive;
   const TRIAL_TOTAL_DAYS = 7;
-  const trialProgress = Math.round(
-    ((TRIAL_TOTAL_DAYS - trialDaysLeft) / TRIAL_TOTAL_DAYS) * 100
-  );
+  const trialProgress = isPromoTrial
+    ? 0
+    : Math.round(((TRIAL_TOTAL_DAYS - trialDaysLeft) / TRIAL_TOTAL_DAYS) * 100);
   const isTrialExpired =
     !isTrialActive &&
     user?.plan === 'STARTER' &&
@@ -281,61 +282,86 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Trial Banner */}
+      {/* Trial / Promo Banner */}
       {isTrialActive && (
         <div
           className="rounded-2xl p-5"
           style={{
-            background: 'linear-gradient(135deg, rgba(79,70,229,0.1), rgba(124,58,237,0.08))',
-            border: '1px solid rgba(79,70,229,0.25)',
+            background: isPromoTrial
+              ? 'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(5,150,105,0.08))'
+              : 'linear-gradient(135deg, rgba(79,70,229,0.1), rgba(124,58,237,0.08))',
+            border: isPromoTrial
+              ? '1px solid rgba(16,185,129,0.25)'
+              : '1px solid rgba(79,70,229,0.25)',
           }}
         >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <div
                 className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+                style={{ background: isPromoTrial
+                  ? 'linear-gradient(135deg, #10b981, #059669)'
+                  : 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
               >
                 <Zap className="w-5 h-5 text-white" />
               </div>
               <div>
                 <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  Período de teste ativo —{' '}
-                  <span style={{ color: trialDaysLeft <= 2 ? '#ef4444' : '#818cf8' }}>
-                    {trialDaysLeft} {trialDaysLeft === 1 ? 'dia restante' : 'dias restantes'}
-                  </span>
+                  {isPromoTrial ? (
+                    <>
+                      Plano {user?.plan?.charAt(0) + user?.plan?.slice(1).toLowerCase()} ativo —{' '}
+                      <span style={{ color: trialDaysLeft <= 7 ? '#ef4444' : '#10b981' }}>
+                        {trialDaysLeft} {trialDaysLeft === 1 ? 'dia restante' : 'dias restantes'}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      Período de teste ativo —{' '}
+                      <span style={{ color: trialDaysLeft <= 2 ? '#ef4444' : '#818cf8' }}>
+                        {trialDaysLeft} {trialDaysLeft === 1 ? 'dia restante' : 'dias restantes'}
+                      </span>
+                    </>
+                  )}
                 </p>
                 <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                  Faça upgrade antes de terminar para não perder o acesso.
+                  {isPromoTrial
+                    ? 'Aproveite todos os recursos do seu plano durante o período promocional.'
+                    : 'Faça upgrade antes de terminar para não perder o acesso.'}
                 </p>
               </div>
             </div>
-            <Link to="/billing" className="flex-shrink-0">
-              <Button variant="primary" size="sm">
-                Fazer upgrade
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
+            {!isPromoTrial && (
+              <Link to="/billing" className="flex-shrink-0">
+                <Button variant="primary" size="sm">
+                  Fazer upgrade
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+            )}
           </div>
-          <div
-            className="w-full rounded-full h-1.5"
-            style={{ backgroundColor: 'rgba(79,70,229,0.2)' }}
-          >
-            <div
-              className="h-1.5 rounded-full transition-all"
-              style={{
-                width: `${trialProgress}%`,
-                backgroundColor: trialDaysLeft <= 2 ? '#ef4444' : '#4f46e5',
-              }}
-            />
-          </div>
-          <div className="flex justify-between text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-            <span>Início</span>
-            <span>
-              Dia {TRIAL_TOTAL_DAYS - trialDaysLeft} de {TRIAL_TOTAL_DAYS}
-            </span>
-            <span>Fim do trial</span>
-          </div>
+          {!isPromoTrial && (
+            <>
+              <div
+                className="w-full rounded-full h-1.5"
+                style={{ backgroundColor: 'rgba(79,70,229,0.2)' }}
+              >
+                <div
+                  className="h-1.5 rounded-full transition-all"
+                  style={{
+                    width: `${trialProgress}%`,
+                    backgroundColor: trialDaysLeft <= 2 ? '#ef4444' : '#4f46e5',
+                  }}
+                />
+              </div>
+              <div className="flex justify-between text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                <span>Início</span>
+                <span>
+                  Dia {TRIAL_TOTAL_DAYS - trialDaysLeft} de {TRIAL_TOTAL_DAYS}
+                </span>
+                <span>Fim do trial</span>
+              </div>
+            </>
+          )}
         </div>
       )}
 

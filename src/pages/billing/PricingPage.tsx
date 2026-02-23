@@ -4,6 +4,7 @@ import { Check, Settings, Clock, Tag, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { getPrices, createCheckoutSession, getMe, validateCoupon, redeemPromoCode, type CouponValidationResult } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 type PlanFeature = {
   text: string;
@@ -56,6 +57,7 @@ export function PricingPage() {
   const [promoRedeemed, setPromoRedeemed] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
 
   const { data: user } = useQuery({
     queryKey: ['me'],
@@ -97,10 +99,11 @@ export function PricingPage() {
 
   const redeemPromoMutation = useMutation({
     mutationFn: redeemPromoCode,
-    onSuccess: () => {
+    onSuccess: async () => {
       setPromoRedeemed(true);
       setCouponCode('');
       setCouponError(null);
+      await refreshUser();
       queryClient.invalidateQueries({ queryKey: ['me'] });
       setTimeout(() => navigate('/dashboard'), 2000);
     },

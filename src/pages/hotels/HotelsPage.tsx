@@ -6,6 +6,8 @@ import {
   getHotels,
   createHotelApi,
   deleteHotelApi,
+  requestSwapApi,
+  retryHotelFetchApi,
   searchHotelApi,
   searchLocationsApi,
   searchHotelsInLocationApi,
@@ -29,6 +31,7 @@ import {
   Globe,
   Link2,
   Star as StarIcon,
+  RefreshCw,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Link } from 'react-router-dom';
@@ -54,14 +57,34 @@ export function HotelsPage() {
       const data = query.state.data;
       if (!data) return false;
       const hasPending = [...data.ownHotels, ...data.competitorHotels].some(
-        (h) => !h.dataFetchedAt
+        (h) => !h.lastFetchAt
       );
-      return hasPending ? 30000 : false;
+      return hasPending ? 15000 : false;
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteHotelApi,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hotels'] });
+    },
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { code?: string } } };
+      if (axiosErr.response?.data?.code === 'SWAP_LIMIT_REACHED') {
+        queryClient.invalidateQueries({ queryKey: ['hotels'] });
+      }
+    },
+  });
+
+  const swapRequestMutation = useMutation({
+    mutationFn: requestSwapApi,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hotels'] });
+    },
+  });
+
+  const retryFetchMutation = useMutation({
+    mutationFn: retryHotelFetchApi,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hotels'] });
     },
@@ -177,6 +200,11 @@ export function HotelsPage() {
                 hotel={hotel}
                 onRemove={() => handleRemoveHotel(hotel.id)}
                 isDeleting={deleteMutation.isPending && deleteMutation.variables === hotel.id}
+                onRequestSwap={() => swapRequestMutation.mutate(hotel.id)}
+                isRequestingSwap={swapRequestMutation.isPending && swapRequestMutation.variables === hotel.id}
+                swapRequestSuccess={swapRequestMutation.isSuccess && swapRequestMutation.variables === hotel.id}
+                onRetryFetch={() => retryFetchMutation.mutate(hotel.id)}
+                isRetrying={retryFetchMutation.isPending && retryFetchMutation.variables === hotel.id}
               />
             ))}
           </div>
@@ -211,6 +239,11 @@ export function HotelsPage() {
                 hotel={hotel}
                 onRemove={() => handleRemoveHotel(hotel.id)}
                 isDeleting={deleteMutation.isPending && deleteMutation.variables === hotel.id}
+                onRequestSwap={() => swapRequestMutation.mutate(hotel.id)}
+                isRequestingSwap={swapRequestMutation.isPending && swapRequestMutation.variables === hotel.id}
+                swapRequestSuccess={swapRequestMutation.isSuccess && swapRequestMutation.variables === hotel.id}
+                onRetryFetch={() => retryFetchMutation.mutate(hotel.id)}
+                isRetrying={retryFetchMutation.isPending && retryFetchMutation.variables === hotel.id}
               />
             ))}
             {canAddCompetitor && (
@@ -235,6 +268,7 @@ export function HotelsPage() {
           onClose={() => setIsModalOpen(false)}
           canAddOwn={canAddOwnHotel}
           canAddCompetitor={canAddCompetitor}
+          existingHotelIds={new Set([...ownHotels, ...competitorHotels].map((h) => h.bookingHotelId))}
         />
       )}
     </div>
@@ -246,12 +280,24 @@ function HotelCard({
   hotel,
   onRemove,
   isDeleting,
+  onRequestSwap,
+  isRequestingSwap,
+  swapRequestSuccess,
+  onRetryFetch,
+  isRetrying,
 }: {
   hotel: Hotel;
   onRemove: () => void;
   isDeleting: boolean;
+  onRequestSwap: () => void;
+  isRequestingSwap: boolean;
+  swapRequestSuccess: boolean;
+  onRetryFetch: () => void;
+  isRetrying: boolean;
 }) {
-  const isFetching = !hotel.dataFetchedAt;
+  const isFetching = !hotel.lastFetchAt;
+  const createdAt = new Date(hotel.createdAt).getTime();
+  const isStuck = isFetching && (Date.now() - createdAt) > 10 * 60 * 1000; // 10 minutos
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return 'Nunca';
@@ -339,10 +385,35 @@ function HotelCard({
             </div>
 
             {isFetching ? (
-              <div className="flex items-center gap-2 mt-3">
-                <Loader2 className="w-3 h-3 animate-spin" style={{ color: '#818cf8' }} />
-                <span className="text-xs font-medium" style={{ color: '#818cf8' }}>Coletando dados do Booking.com...</span>
-              </div>
+              isStuck ? (
+                <div className="flex items-center gap-2 mt-3">
+                  <AlertCircle className="w-3 h-3 text-amber-500" />
+                  <span className="text-xs font-medium text-amber-500">Falha ao coletar dados</span>
+                  <button
+                    onClick={onRetryFetch}
+                    disabled={isRetrying}
+                    className="flex items-center gap-1 text-xs font-medium ml-auto transition-colors"
+                    style={{ color: '#818cf8' }}
+                  >
+                    {isRetrying ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3 h-3" />
+                    )}
+                    {isRetrying ? 'Reenviando...' : 'Tentar novamente'}
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-3 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-3 h-3 animate-spin" style={{ color: '#818cf8' }} />
+                    <span className="text-xs font-medium" style={{ color: '#818cf8' }}>Coletando dados do Booking.com...</span>
+                  </div>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    Pode levar ate 5 minutos. Avisaremos por e-mail quando finalizar.
+                  </p>
+                </div>
+              )
             ) : (
               <div className="flex items-center justify-between mt-3">
                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -363,16 +434,43 @@ function HotelCard({
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   )}
-                  <button
-                    onClick={onRemove}
-                    disabled={isDeleting}
-                    className="transition-colors"
-                    style={{ color: 'var(--text-muted)' }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  {hotel.swapCount >= 1 ? (
+                    hotel.hasPendingSwapRequest || swapRequestSuccess ? (
+                      <span
+                        className="text-xs px-2 py-1 rounded-md"
+                        style={{ color: '#818cf8', backgroundColor: 'rgba(79,70,229,0.1)', border: '1px solid rgba(79,70,229,0.2)' }}
+                      >
+                        Troca solicitada
+                      </span>
+                    ) : (
+                      <button
+                        onClick={onRequestSwap}
+                        disabled={isRequestingSwap}
+                        className="flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors"
+                        style={{
+                          backgroundColor: 'rgba(79,70,229,0.1)',
+                          color: '#818cf8',
+                          border: '1px solid rgba(79,70,229,0.3)',
+                        }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(79,70,229,0.2)'; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(79,70,229,0.1)'; }}
+                      >
+                        <RefreshCw className={cn('w-3 h-3', isRequestingSwap && 'animate-spin')} />
+                        {isRequestingSwap ? 'Enviando...' : 'Solicitar troca'}
+                      </button>
+                    )
+                  ) : (
+                    <button
+                      onClick={onRemove}
+                      disabled={isDeleting}
+                      className="transition-colors"
+                      style={{ color: 'var(--text-muted)' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -388,10 +486,12 @@ function AddHotelModal({
   onClose,
   canAddOwn,
   canAddCompetitor,
+  existingHotelIds,
 }: {
   onClose: () => void;
   canAddOwn: boolean;
   canAddCompetitor: boolean;
+  existingHotelIds: Set<string>;
 }) {
   const [searchMode, setSearchMode] = useState<'url' | 'city'>('url');
   const [step, setStep] = useState<'search' | 'select' | 'select-location' | 'select-hotel'>('search');
@@ -405,6 +505,10 @@ function AddHotelModal({
   const [hotelResults, setHotelResults] = useState<HotelInLocationResult[]>([]);
   const [selectedCityHotel, setSelectedCityHotel] = useState<HotelInLocationResult | null>(null);
   const [selectedLocationName, setSelectedLocationName] = useState('');
+  const [selectedLocationDest, setSelectedLocationDest] = useState<{ destId: string; destType: string } | null>(null);
+  const [hotelPageNumber, setHotelPageNumber] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const queryClient = useQueryClient();
 
   const searchMutation = useMutation({
@@ -442,20 +546,28 @@ function AddHotelModal({
   });
 
   const hotelsInLocationMutation = useMutation({
-    mutationFn: ({ destId, destType }: { destId: string; destType: string }) =>
-      searchHotelsInLocationApi(destId, destType),
-    onSuccess: (results) => {
-      if (results.length === 0) {
+    mutationFn: ({ destId, destType, pageNumber }: { destId: string; destType: string; pageNumber?: number }) =>
+      searchHotelsInLocationApi(destId, destType, pageNumber),
+    onSuccess: (results, variables) => {
+      const isLoadMore = (variables.pageNumber ?? 0) > 0;
+      if (results.length === 0 && !isLoadMore) {
         setError('Nenhum hotel encontrado nesta localidade.');
+        setIsLoadingMore(false);
         return;
       }
-      setHotelResults(results);
+      if (isLoadMore) {
+        setHotelResults((prev) => [...prev, ...results]);
+      } else {
+        setHotelResults(results);
+      }
+      setIsLoadingMore(false);
       setStep('select-hotel');
       setError('');
     },
     onError: (err: unknown) => {
       const axiosErr = err as { response?: { data?: { error?: string } } };
       setError(axiosErr.response?.data?.error || 'Erro ao buscar hoteis');
+      setIsLoadingMore(false);
     },
   });
 
@@ -463,7 +575,7 @@ function AddHotelModal({
     mutationFn: createHotelApi,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hotels'] });
-      onClose();
+      setShowSuccess(true);
     },
     onError: (err: unknown) => {
       const axiosErr = err as { response?: { data?: { error?: string } } };
@@ -503,6 +615,9 @@ function AddHotelModal({
 
   const handleSelectLocation = (location: LocationSearchResult) => {
     setSelectedLocationName(location.name);
+    setSelectedLocationDest({ destId: location.dest_id, destType: location.dest_type });
+    setHotelPageNumber(0);
+    setHotelResults([]);
     setError('');
     hotelsInLocationMutation.mutate({ destId: location.dest_id, destType: location.dest_type });
   };
@@ -526,6 +641,18 @@ function AddHotelModal({
     });
   };
 
+  const handleLoadMore = () => {
+    if (!selectedLocationDest) return;
+    const nextPage = hotelPageNumber + 1;
+    setHotelPageNumber(nextPage);
+    setIsLoadingMore(true);
+    hotelsInLocationMutation.mutate({
+      destId: selectedLocationDest.destId,
+      destType: selectedLocationDest.destType,
+      pageNumber: nextPage,
+    });
+  };
+
   const handleBack = () => {
     setError('');
     if (step === 'select') {
@@ -539,6 +666,8 @@ function AddHotelModal({
       setStep('select-location');
       setSelectedCityHotel(null);
       setHotelResults([]);
+      setHotelPageNumber(0);
+      setSelectedLocationDest(null);
     }
   };
 
@@ -569,6 +698,38 @@ function AddHotelModal({
     fontSize: 14,
     outline: 'none',
   };
+
+  if (showSuccess) {
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div
+          className="rounded-xl shadow-2xl max-w-md w-full"
+          style={{ backgroundColor: 'var(--surface-card)', border: '1px solid var(--surface-border)' }}
+        >
+          <div className="p-8 text-center">
+            <div
+              className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+              style={{ background: 'rgba(79,70,229,0.15)' }}
+            >
+              <CheckCircle className="w-7 h-7" style={{ color: '#818cf8' }} />
+            </div>
+            <h2 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+              Hotel adicionado!
+            </h2>
+            <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
+              Estamos coletando os dados do Booking.com agora.
+            </p>
+            <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+              Esse processo pode levar ate 5 minutos. Voce recebera um e-mail quando tudo estiver pronto.
+            </p>
+            <Button variant="primary" onClick={onClose} className="w-full">
+              Entendi
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
@@ -773,12 +934,15 @@ function AddHotelModal({
                 Encontramos {searchResults.length} resultado(s). Selecione o hotel correto:
               </p>
 
-              {searchResults.map((result) => (
+              {searchResults.map((result) => {
+                const isExisting = existingHotelIds.has(result.dest_id);
+                return (
                 <button
                   key={result.dest_id}
                   type="button"
-                  onClick={() => setSelectedHotel(result)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-colors"
+                  onClick={() => !isExisting && setSelectedHotel(result)}
+                  disabled={isExisting}
+                  className={cn('w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-colors', isExisting && 'opacity-50 cursor-not-allowed')}
                   style={{
                     borderColor: selectedHotel?.dest_id === result.dest_id ? '#4f46e5' : 'var(--surface-border)',
                     backgroundColor: selectedHotel?.dest_id === result.dest_id ? 'rgba(79,70,229,0.1)' : 'var(--surface-secondary)',
@@ -799,12 +963,18 @@ function AddHotelModal({
                       <MapPin className="w-3 h-3 flex-shrink-0" />
                       <span className="truncate">{result.city_name}{result.region ? `, ${result.region}` : ''}{result.country ? `, ${result.country}` : ''}</span>
                     </div>
+                    {isExisting && (
+                      <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(79,70,229,0.15)', color: '#818cf8' }}>
+                        Ja adicionado
+                      </span>
+                    )}
                   </div>
                   {selectedHotel?.dest_id === result.dest_id && (
                     <CheckCircle className="w-5 h-5 flex-shrink-0" style={{ color: '#818cf8' }} />
                   )}
                 </button>
-              ))}
+                );
+              })}
             </div>
 
             {error && (
@@ -854,7 +1024,6 @@ function AddHotelModal({
                       <span className="truncate">{location.region ? `${location.region}, ` : ''}{location.country}</span>
                     </div>
                   </div>
-                  <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{location.nr_hotels} hoteis</span>
                 </button>
               ))}
 
@@ -887,12 +1056,15 @@ function AddHotelModal({
             <div className="p-4 overflow-y-auto flex-1 space-y-3">
               <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>{hotelResults.length} hotel(is) encontrado(s). Selecione:</p>
 
-              {hotelResults.map((hotel) => (
+              {hotelResults.map((hotel) => {
+                const isExisting = existingHotelIds.has(hotel.hotel_id);
+                return (
                 <button
                   key={hotel.hotel_id}
                   type="button"
-                  onClick={() => setSelectedCityHotel(hotel)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-colors"
+                  onClick={() => !isExisting && setSelectedCityHotel(hotel)}
+                  disabled={isExisting}
+                  className={cn('w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-colors', isExisting && 'opacity-50 cursor-not-allowed')}
                   style={{
                     borderColor: selectedCityHotel?.hotel_id === hotel.hotel_id ? '#4f46e5' : 'var(--surface-border)',
                     backgroundColor: selectedCityHotel?.hotel_id === hotel.hotel_id ? 'rgba(79,70,229,0.1)' : 'var(--surface-secondary)',
@@ -928,12 +1100,47 @@ function AddHotelModal({
                       )}
                       {hotel.distance && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{hotel.distance}</span>}
                     </div>
+                    {isExisting && (
+                      <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(79,70,229,0.15)', color: '#818cf8' }}>
+                        Ja adicionado
+                      </span>
+                    )}
                   </div>
                   {selectedCityHotel?.hotel_id === hotel.hotel_id && (
                     <CheckCircle className="w-5 h-5 flex-shrink-0" style={{ color: '#818cf8' }} />
                   )}
                 </button>
-              ))}
+                );
+              })}
+
+              {/* Load More */}
+              {hotelResults.length > 0 && hotelResults.length % 20 === 0 && (
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                  className="w-full flex items-center justify-center gap-2 p-3 rounded-lg text-sm font-medium transition-colors"
+                  style={{
+                    backgroundColor: 'var(--surface-secondary)',
+                    border: '1px solid var(--surface-border)',
+                    color: '#818cf8',
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#4f46e5'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--surface-border)'; }}
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Carregando...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4" />
+                      Carregar mais hoteis
+                    </>
+                  )}
+                </button>
+              )}
             </div>
 
             {error && (

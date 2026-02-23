@@ -209,6 +209,8 @@ export interface Hotel {
   bookingHotelId: string;
   isOwn: boolean;
   isActive: boolean;
+  swapCount: number;
+  hasPendingSwapRequest: boolean;
   address: string | null;
   city: string | null;
   country: string | null;
@@ -287,8 +289,8 @@ export async function searchLocationsApi(query: string): Promise<LocationSearchR
   return response.data;
 }
 
-export async function searchHotelsInLocationApi(destId: string, destType: string): Promise<HotelInLocationResult[]> {
-  const response = await api.post<HotelInLocationResult[]>('/hotels/search-in-location', { destId, destType });
+export async function searchHotelsInLocationApi(destId: string, destType: string, pageNumber = 0): Promise<HotelInLocationResult[]> {
+  const response = await api.post<HotelInLocationResult[]>('/hotels/search-in-location', { destId, destType, pageNumber });
   return response.data;
 }
 
@@ -304,6 +306,16 @@ export async function createHotelApi(data: {
 
 export async function deleteHotelApi(id: string): Promise<void> {
   await api.delete(`/hotels/${id}`);
+}
+
+export async function requestSwapApi(hotelId: string): Promise<{ id: string }> {
+  const response = await api.post<{ id: string }>(`/hotels/${hotelId}/swap-request`);
+  return response.data;
+}
+
+export async function retryHotelFetchApi(hotelId: string): Promise<{ ok: boolean }> {
+  const response = await api.post<{ ok: boolean }>(`/hotels/${hotelId}/retry-fetch`);
+  return response.data;
 }
 
 // ============================================

@@ -55,8 +55,13 @@ export function Header({ onMenuClick }: HeaderProps) {
           <Menu className="w-6 h-6" />
         </button>
 
-        {/* Spacer — title is now in page content */}
-        <div className="hidden lg:block" />
+        {/* Organization name */}
+        <h1
+          className="hidden lg:block text-lg font-semibold truncate max-w-xs"
+          style={{ color: 'var(--text-primary)' }}
+        >
+          {user?.organizationName}
+        </h1>
 
         {/* Right side */}
         <div className="flex items-center gap-2">

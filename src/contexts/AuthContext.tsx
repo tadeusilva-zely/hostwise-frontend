@@ -8,6 +8,7 @@ interface AuthUser {
   name: string;
   phone: string | null;
   role: 'OWNER' | 'MEMBER';
+  organizationName: string;
   plan: 'STARTER' | 'INSIGHT' | 'PRO';
   effectivePlan: 'STARTER' | 'INSIGHT' | 'PRO';
   trialEndsAt: string | null;

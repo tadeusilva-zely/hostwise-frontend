@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,12 +13,17 @@ import {
   CreditCard,
   LogOut,
   BarChart2,
+  Radar,
+  ChevronDown,
 } from 'lucide-react';
 
 const mainMenuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: Star, label: 'Avaliações', path: '/reviews' },
-  { icon: BarChart2, label: 'Analytics', path: '/analytics' },
+  { icon: BarChart2, label: 'Reputação', path: '/analytics' },
+];
+
+const radarSubItems = [
   { icon: DollarSign, label: 'Espião de Tarifas', path: '/rates' },
   { icon: TrendingUp, label: 'Sensor de Lotação', path: '/occupancy' },
 ];
@@ -118,6 +124,9 @@ function SidebarContent({
   handleLogout,
   onNavigate,
 }: SidebarContentProps) {
+  const isRadarActive = radarSubItems.some((item) => location.pathname === item.path);
+  const [radarOpen, setRadarOpen] = useState(isRadarActive);
+
   const getPlanBadge = (plan?: string) => {
     switch (plan) {
       case 'PRO':
@@ -154,6 +163,34 @@ function SidebarContent({
     }
   };
 
+  const linkStyle = (isActive: boolean) =>
+    isActive
+      ? {
+          background:
+            'linear-gradient(135deg, rgba(79,70,229,0.15), rgba(124,58,237,0.1))',
+          color: '#818cf8',
+          borderLeft: '2px solid var(--accent-primary)',
+          paddingLeft: '10px',
+        }
+      : {
+          color: 'var(--text-muted)',
+        };
+
+  const hoverHandlers = (isActive: boolean) => ({
+    onMouseEnter: (e: React.MouseEvent) => {
+      if (!isActive) {
+        (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-card)';
+        (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
+      }
+    },
+    onMouseLeave: (e: React.MouseEvent) => {
+      if (!isActive) {
+        (e.currentTarget as HTMLElement).style.backgroundColor = '';
+        (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
+      }
+    },
+  });
+
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
@@ -176,37 +213,91 @@ function SidebarContent({
               to={item.path}
               onClick={onNavigate}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150"
-              style={
-                isActive
-                  ? {
-                      background:
-                        'linear-gradient(135deg, rgba(79,70,229,0.15), rgba(124,58,237,0.1))',
-                      color: '#818cf8',
-                      borderLeft: '2px solid var(--accent-primary)',
-                      paddingLeft: '10px',
-                    }
-                  : {
-                      color: 'var(--text-muted)',
-                    }
-              }
-              onMouseEnter={(e) => {
-                if (!isActive) {
-                  (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-card)';
-                  (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) {
-                  (e.currentTarget as HTMLElement).style.backgroundColor = '';
-                  (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
-                }
-              }}
+              style={linkStyle(isActive)}
+              {...hoverHandlers(isActive)}
             >
               <Icon className="w-5 h-5 flex-shrink-0" />
               {item.label}
             </Link>
           );
         })}
+
+        {/* Radar de Mercado - Collapsible */}
+        <div>
+          <button
+            onClick={() => setRadarOpen(!radarOpen)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150"
+            style={{
+              color: isRadarActive ? '#818cf8' : 'var(--text-muted)',
+              ...(isRadarActive
+                ? {
+                    background:
+                      'linear-gradient(135deg, rgba(79,70,229,0.08), rgba(124,58,237,0.05))',
+                  }
+                : {}),
+            }}
+            onMouseEnter={(e) => {
+              if (!isRadarActive) {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-card)';
+                (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isRadarActive) {
+                (e.currentTarget as HTMLElement).style.backgroundColor = '';
+                (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
+              }
+            }}
+          >
+            <Radar className="w-5 h-5 flex-shrink-0" />
+            <span className="flex-1 text-left">Radar de Mercado</span>
+            <ChevronDown
+              className={cn(
+                'w-4 h-4 flex-shrink-0 transition-transform duration-200',
+                radarOpen && 'rotate-180'
+              )}
+            />
+          </button>
+
+          {/* Sub-items */}
+          <div
+            className={cn(
+              'overflow-hidden transition-all duration-200',
+              radarOpen ? 'max-h-40 opacity-100 mt-1' : 'max-h-0 opacity-0'
+            )}
+          >
+            <div className="ml-3 pl-3 space-y-0.5" style={{ borderLeft: '1px solid var(--surface-border)' }}>
+              {radarSubItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={onNavigate}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150"
+                    style={
+                      isActive
+                        ? {
+                            background:
+                              'linear-gradient(135deg, rgba(79,70,229,0.15), rgba(124,58,237,0.1))',
+                            color: '#818cf8',
+                          }
+                        : {
+                            color: 'var(--text-muted)',
+                          }
+                    }
+                    {...hoverHandlers(isActive)}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
         {/* Separator */}
         <div className="my-3" style={{ borderTop: '1px solid var(--surface-border)' }} />
@@ -216,31 +307,8 @@ function SidebarContent({
           to={hotelMenuItem.path}
           onClick={onNavigate}
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150"
-          style={
-            location.pathname === hotelMenuItem.path
-              ? {
-                  background:
-                    'linear-gradient(135deg, rgba(79,70,229,0.15), rgba(124,58,237,0.1))',
-                  color: '#818cf8',
-                  borderLeft: '2px solid var(--accent-primary)',
-                  paddingLeft: '10px',
-                }
-              : {
-                  color: 'var(--text-muted)',
-                }
-          }
-          onMouseEnter={(e) => {
-            if (location.pathname !== hotelMenuItem.path) {
-              (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-card)';
-              (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (location.pathname !== hotelMenuItem.path) {
-              (e.currentTarget as HTMLElement).style.backgroundColor = '';
-              (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
-            }
-          }}
+          style={linkStyle(location.pathname === hotelMenuItem.path)}
+          {...hoverHandlers(location.pathname === hotelMenuItem.path)}
         >
           <hotelMenuItem.icon className="w-5 h-5 flex-shrink-0" />
           {hotelMenuItem.label}
@@ -282,18 +350,7 @@ function SidebarContent({
                 }
               : { color: 'var(--text-muted)' }
           }
-          onMouseEnter={(e) => {
-            if (location.pathname !== '/billing') {
-              (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--surface-card)';
-              (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (location.pathname !== '/billing') {
-              (e.currentTarget as HTMLElement).style.backgroundColor = '';
-              (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
-            }
-          }}
+          {...hoverHandlers(location.pathname === '/billing')}
         >
           <CreditCard className="w-5 h-5 flex-shrink-0" />
           Planos & Billing

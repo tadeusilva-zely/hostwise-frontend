@@ -2,10 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Check, Settings, Clock, Tag, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { getPrices, createCheckoutSession, getMe, validateCoupon, type CouponValidationResult } from '../../services/api';
-import { cn } from '../../lib/utils';
 
 type PlanFeature = {
   text: string;

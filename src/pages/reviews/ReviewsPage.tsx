@@ -94,8 +94,9 @@ export function ReviewsPage() {
 
   // Default hotel selector to own hotel when no hotelId in URL
   useEffect(() => {
-    if (!searchParams.get('hotelId') && hotelsData?.ownHotels?.length > 0 && selectedHotelId === 'all') {
-      setSelectedHotelId(hotelsData.ownHotels[0].id);
+    const ownHotels = hotelsData?.ownHotels ?? [];
+    if (!searchParams.get('hotelId') && ownHotels.length > 0 && selectedHotelId === 'all') {
+      setSelectedHotelId(ownHotels[0].id);
     }
   }, [hotelsData?.ownHotels?.length]);
 

@@ -20,7 +20,6 @@ export function HotelSelector({ ownHotels, competitorHotels, selectedHotelId, on
           backgroundColor: 'var(--surface-secondary)',
           border: '1px solid var(--surface-border)',
           color: 'var(--text-primary)',
-          focusRingColor: 'var(--accent-primary)',
         }}
       >
         <option value="all">Todos os Hotéis</option>

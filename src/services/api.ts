@@ -221,6 +221,7 @@ export interface Hotel {
   bookingUrl: string | null;
   lastFetchAt: string | null;
   dataFetchedAt: string | null;
+  tripadvisorId: string | null;
   createdAt: string;
 }
 
@@ -318,6 +319,11 @@ export async function retryHotelFetchApi(hotelId: string): Promise<{ ok: boolean
   return response.data;
 }
 
+export async function remapTripadvisorApi(hotelId: string): Promise<{ ok: boolean; mapped: boolean; tripadvisorId: string | null }> {
+  const response = await api.post<{ ok: boolean; mapped: boolean; tripadvisorId: string | null }>(`/hotels/${hotelId}/remap-tripadvisor`);
+  return response.data;
+}
+
 // ============================================
 // RATES
 // ============================================
@@ -369,6 +375,7 @@ export interface ReviewWithHotel {
   hotelId: string;
   hotelName: string;
   isOwnHotel: boolean;
+  source?: ReviewSource;
   rating: number;
   title: string | null;
   positive: string | null;
@@ -403,6 +410,7 @@ export async function getReviews(params: {
   hotelId?: string;
   sentiment?: string;
   responseStatus?: 'PENDING' | 'ANSWERED';
+  sources?: ReviewSource[];
   page?: number;
   limit?: number;
 }): Promise<ReviewsResponse> {

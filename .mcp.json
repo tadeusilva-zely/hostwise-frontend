@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "RapidAPI Hub - Tripadvisor COM": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://mcp.rapidapi.com",
+        "--header",
+        "x-api-host: tripadvisor-com1.p.rapidapi.com",
+        "--header",
+        "x-api-key: 136f7f857emsh8dd06004fafd857p18d69bjsn53cd47240e9b"
+      ]
+    }
+  }
+}

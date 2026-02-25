@@ -12,7 +12,7 @@ import {
   getReviewResponseStats,
   markReviewAnswered,
 } from '../../services/api';
-import type { ReviewWithHotel } from '../../services/api';
+import type { ReviewWithHotel, ReviewSource } from '../../services/api';
 import { PageHeader } from '../../components/ui/PageHeader';
 import {
   Star,
@@ -56,6 +56,7 @@ export function ReviewsPage() {
     searchParams.get('hotelId') || 'all'
   );
   const [page, setPage] = useState(1);
+  const [selectedSources, setSelectedSources] = useState<ReviewSource[]>([]);
   const [smartReplyReview, setSmartReplyReview] = useState<ReviewWithHotel | null>(null);
 
   const handleFilterChange = (newFilter: typeof filter) => {
@@ -146,12 +147,13 @@ export function ReviewsPage() {
     isFetching,
     isPlaceholderData,
   } = useQuery({
-    queryKey: ['reviews', selectedHotelId, filter, responseFilter, page, effectiveLimit],
+    queryKey: ['reviews', selectedHotelId, filter, responseFilter, selectedSources, page, effectiveLimit],
     queryFn: () =>
       getReviews({
         hotelId: selectedHotelId !== 'all' ? selectedHotelId : undefined,
         sentiment: apiSentiment,
         responseStatus: apiResponseStatus,
+        sources: selectedSources.length > 0 ? selectedSources : undefined,
         page,
         limit: effectiveLimit,
       }),
@@ -443,6 +445,41 @@ export function ReviewsPage() {
                   </button>
                 ))}
               </div>
+
+              {/* Source filter */}
+              <div className="flex items-center gap-2 flex-wrap mt-3">
+                {([
+                  { key: 'BOOKING' as ReviewSource, label: 'Booking.com', color: '#60a5fa' },
+                  { key: 'TRIPADVISOR' as ReviewSource, label: 'TripAdvisor', color: '#34d399' },
+                ] as const).map(({ key, label, color }) => {
+                  const active = selectedSources.length === 0 || selectedSources.includes(key);
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        setSelectedSources((prev) => {
+                          if (prev.length === 0) return [key];
+                          if (prev.includes(key)) return prev.length > 1 ? prev.filter((s) => s !== key) : [];
+                          return [...prev, key];
+                        });
+                        setPage(1);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border"
+                      style={{
+                        backgroundColor: active ? `${color}22` : 'var(--surface-secondary)',
+                        borderColor: active ? color : 'var(--surface-border)',
+                        color: active ? color : 'var(--text-muted)',
+                      }}
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: active ? color : 'var(--text-muted)' }}
+                      />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </CardHeader>
 
@@ -584,6 +621,17 @@ function ReviewCard({
         </div>
 
         <div className="flex items-center gap-2">
+          {review.source && (
+            <span
+              className="px-2 py-1 rounded-lg text-xs font-medium"
+              style={{
+                backgroundColor: review.source === 'TRIPADVISOR' ? 'rgba(52,211,153,0.12)' : 'rgba(96,165,250,0.12)',
+                color: review.source === 'TRIPADVISOR' ? '#34d399' : '#60a5fa',
+              }}
+            >
+              {review.source === 'TRIPADVISOR' ? 'TripAdvisor' : 'Booking.com'}
+            </span>
+          )}
           <span
             className="px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1"
             style={{ backgroundColor: config.bg, color: config.color }}
@@ -607,21 +655,33 @@ function ReviewCard({
       )}
 
       <div className="space-y-2">
-        {review.positive && (
-          <div className="flex gap-2">
-            <ThumbsUp className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#10b981' }} />
+        {review.source === 'TRIPADVISOR' ? (
+          // TripAdvisor: single review body (no pros/cons split)
+          review.positive && (
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
               {review.positive}
             </p>
-          </div>
-        )}
-        {review.negative && (
-          <div className="flex gap-2">
-            <ThumbsDown className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#f87171' }} />
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              {review.negative}
-            </p>
-          </div>
+          )
+        ) : (
+          // Booking: separate pros/cons
+          <>
+            {review.positive && (
+              <div className="flex gap-2">
+                <ThumbsUp className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#10b981' }} />
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  {review.positive}
+                </p>
+              </div>
+            )}
+            {review.negative && (
+              <div className="flex gap-2">
+                <ThumbsDown className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#f87171' }} />
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  {review.negative}
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
 

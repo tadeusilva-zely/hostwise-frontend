@@ -187,7 +187,7 @@ export function AnalyticsPage() {
             {([
               { key: 'BOOKING' as ReviewSource, label: 'Booking.com', color: '#60a5fa', available: true },
               { key: 'GOOGLE' as ReviewSource, label: 'Google', color: '#818cf8', available: false },
-              { key: 'TRIPADVISOR' as ReviewSource, label: 'TripAdvisor', color: '#34d399', available: false },
+              { key: 'TRIPADVISOR' as ReviewSource, label: 'TripAdvisor', color: '#34d399', available: true },
             ] as const).map(({ key, label, color, available }) => {
               const active = selectedSources.includes(key);
               if (!available) {

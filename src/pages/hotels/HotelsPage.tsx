@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
+import { OtaBadges } from '../../components/ui/OtaBadges';
 import {
   getMe,
   getHotels,
@@ -8,6 +9,7 @@ import {
   deleteHotelApi,
   requestSwapApi,
   retryHotelFetchApi,
+  remapTripadvisorApi,
   searchHotelApi,
   searchLocationsApi,
   searchHotelsInLocationApi,
@@ -85,6 +87,13 @@ export function HotelsPage() {
 
   const retryFetchMutation = useMutation({
     mutationFn: retryHotelFetchApi,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hotels'] });
+    },
+  });
+
+  const remapTripadvisorMutation = useMutation({
+    mutationFn: remapTripadvisorApi,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hotels'] });
     },
@@ -205,6 +214,8 @@ export function HotelsPage() {
                 swapRequestSuccess={swapRequestMutation.isSuccess && swapRequestMutation.variables === hotel.id}
                 onRetryFetch={() => retryFetchMutation.mutate(hotel.id)}
                 isRetrying={retryFetchMutation.isPending && retryFetchMutation.variables === hotel.id}
+                onRemapTripadvisor={() => remapTripadvisorMutation.mutate(hotel.id)}
+                isRemapping={remapTripadvisorMutation.isPending && remapTripadvisorMutation.variables === hotel.id}
               />
             ))}
           </div>
@@ -244,6 +255,8 @@ export function HotelsPage() {
                 swapRequestSuccess={swapRequestMutation.isSuccess && swapRequestMutation.variables === hotel.id}
                 onRetryFetch={() => retryFetchMutation.mutate(hotel.id)}
                 isRetrying={retryFetchMutation.isPending && retryFetchMutation.variables === hotel.id}
+                onRemapTripadvisor={() => remapTripadvisorMutation.mutate(hotel.id)}
+                isRemapping={remapTripadvisorMutation.isPending && remapTripadvisorMutation.variables === hotel.id}
               />
             ))}
             {canAddCompetitor && (
@@ -285,6 +298,8 @@ function HotelCard({
   swapRequestSuccess,
   onRetryFetch,
   isRetrying,
+  onRemapTripadvisor,
+  isRemapping,
 }: {
   hotel: Hotel;
   onRemove: () => void;
@@ -294,6 +309,8 @@ function HotelCard({
   swapRequestSuccess: boolean;
   onRetryFetch: () => void;
   isRetrying: boolean;
+  onRemapTripadvisor: () => void;
+  isRemapping: boolean;
 }) {
   const isFetching = !hotel.lastFetchAt;
   const createdAt = new Date(hotel.createdAt).getTime();
@@ -415,62 +432,71 @@ function HotelCard({
                 </div>
               )
             ) : (
-              <div className="flex items-center justify-between mt-3">
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  Atualizado: {formatDate(hotel.lastFetchAt)}
-                </span>
+              <div className="mt-3 space-y-2">
+                <OtaBadges
+                  bookingMapped={!!hotel.bookingHotelId}
+                  tripadvisorMapped={!!hotel.tripadvisorId}
+                  googleMapped={false}
+                  onRemapTripadvisor={onRemapTripadvisor}
+                  isRemappingTripadvisor={isRemapping}
+                />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    Atualizado: {formatDate(hotel.lastFetchAt)}
+                  </span>
 
-                <div className="flex items-center gap-2">
-                  {hotel.bookingUrl && (
-                    <a
-                      href={hotel.bookingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="transition-colors"
-                      style={{ color: 'var(--text-muted)' }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#818cf8'; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  )}
-                  {hotel.swapCount >= 1 ? (
-                    hotel.hasPendingSwapRequest || swapRequestSuccess ? (
-                      <span
-                        className="text-xs px-2 py-1 rounded-md"
-                        style={{ color: '#818cf8', backgroundColor: 'rgba(79,70,229,0.1)', border: '1px solid rgba(79,70,229,0.2)' }}
+                  <div className="flex items-center gap-2">
+                    {hotel.bookingUrl && (
+                      <a
+                        href={hotel.bookingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="transition-colors"
+                        style={{ color: 'var(--text-muted)' }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#818cf8'; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
                       >
-                        Troca solicitada
-                      </span>
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    )}
+                    {hotel.swapCount >= 1 ? (
+                      hotel.hasPendingSwapRequest || swapRequestSuccess ? (
+                        <span
+                          className="text-xs px-2 py-1 rounded-md"
+                          style={{ color: '#818cf8', backgroundColor: 'rgba(79,70,229,0.1)', border: '1px solid rgba(79,70,229,0.2)' }}
+                        >
+                          Troca solicitada
+                        </span>
+                      ) : (
+                        <button
+                          onClick={onRequestSwap}
+                          disabled={isRequestingSwap}
+                          className="flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors"
+                          style={{
+                            backgroundColor: 'rgba(79,70,229,0.1)',
+                            color: '#818cf8',
+                            border: '1px solid rgba(79,70,229,0.3)',
+                          }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(79,70,229,0.2)'; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(79,70,229,0.1)'; }}
+                        >
+                          <RefreshCw className={cn('w-3 h-3', isRequestingSwap && 'animate-spin')} />
+                          {isRequestingSwap ? 'Enviando...' : 'Solicitar troca'}
+                        </button>
+                      )
                     ) : (
                       <button
-                        onClick={onRequestSwap}
-                        disabled={isRequestingSwap}
-                        className="flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors"
-                        style={{
-                          backgroundColor: 'rgba(79,70,229,0.1)',
-                          color: '#818cf8',
-                          border: '1px solid rgba(79,70,229,0.3)',
-                        }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(79,70,229,0.2)'; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(79,70,229,0.1)'; }}
+                        onClick={onRemove}
+                        disabled={isDeleting}
+                        className="transition-colors"
+                        style={{ color: 'var(--text-muted)' }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
                       >
-                        <RefreshCw className={cn('w-3 h-3', isRequestingSwap && 'animate-spin')} />
-                        {isRequestingSwap ? 'Enviando...' : 'Solicitar troca'}
+                        <X className="w-4 h-4" />
                       </button>
-                    )
-                  ) : (
-                    <button
-                      onClick={onRemove}
-                      disabled={isDeleting}
-                      className="transition-colors"
-                      style={{ color: 'var(--text-muted)' }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             )}

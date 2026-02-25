@@ -195,10 +195,16 @@ function SidebarContent({
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div
-        className="flex items-center justify-center px-6 py-5"
+        className="flex items-center justify-center gap-2 px-6 py-5"
         style={{ borderBottom: '1px solid var(--surface-border)' }}
       >
         <img src="/logo.png" alt="HostWise" className="h-10 w-auto rounded-lg" />
+        <span
+          className="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-widest uppercase self-start mt-1"
+          style={{ backgroundColor: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.25)' }}
+        >
+          Beta
+        </span>
       </div>
 
       {/* Main Navigation */}

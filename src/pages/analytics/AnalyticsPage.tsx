@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
@@ -52,6 +52,7 @@ export function AnalyticsPage() {
   const canAccessAlerts = user?.limits.hasAlerts ?? false;
 
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
+  const [aiForceRefresh, setAiForceRefresh] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
   const [selectedSources, setSelectedSources] = useState<ReviewSource[]>(['BOOKING', 'GOOGLE', 'TRIPADVISOR']);
@@ -117,12 +118,17 @@ export function AnalyticsPage() {
   });
 
   const ownHotelId = hotelsData?.ownHotels?.[0]?.id;
-  const { data: aiSummary, isLoading: aiLoading, refetch: refetchAi } = useQuery({
-    queryKey: ['ai-review-summary', ownHotelId],
-    queryFn: () => getAiReviewSummary(ownHotelId!),
+  const { data: aiSummary, isLoading: aiLoading, isSuccess: aiSuccess } = useQuery({
+    queryKey: ['ai-review-summary', ownHotelId, aiForceRefresh],
+    queryFn: () => getAiReviewSummary(ownHotelId!, aiForceRefresh),
     enabled: !!ownHotelId,
     staleTime: 1000 * 60 * 60,
   });
+
+  // After a forced refresh completes, reset the flag so next visit uses cache normally
+  useEffect(() => {
+    if (aiForceRefresh && aiSuccess) setAiForceRefresh(false);
+  }, [aiForceRefresh, aiSuccess]);
 
   const competitorHotels = hotelsData?.competitorHotels || [];
   const canCompare = competitorHotels.length > 0;
@@ -290,7 +296,7 @@ export function AnalyticsPage() {
               </div>
             </div>
             <button
-              onClick={() => refetchAi()}
+              onClick={() => setAiForceRefresh(true)}
               className="p-2 rounded-lg transition-colors"
               style={{ color: 'var(--text-muted)' }}
               title="Atualizar análise"

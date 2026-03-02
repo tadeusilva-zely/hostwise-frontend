@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { isValidCnpj } from '../../utils/cnpj';
+import { trackStartTrial, trackCompleteRegistration } from '../../lib/tracking';
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -20,6 +21,14 @@ export function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const hasTrackedStartTrial = useRef(false);
+
+  useEffect(() => {
+    if (!hasTrackedStartTrial.current) {
+      hasTrackedStartTrial.current = true;
+      trackStartTrial();
+    }
+  }, []);
 
   const updateField = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -76,6 +85,7 @@ export function RegisterPage() {
         cnpj: form.cnpj || undefined,
         phone: form.phone || undefined,
       });
+      trackCompleteRegistration();
       navigate('/dashboard');
     } catch (err: any) {
       const message = err?.response?.data?.error || 'Erro ao criar conta. Tente novamente.';

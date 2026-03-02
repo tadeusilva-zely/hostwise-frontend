@@ -1,17 +1,32 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { CheckCircle } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { getMe } from '../../services/api';
+import { trackPurchase } from '../../lib/tracking';
 
 export function CheckoutSuccess() {
   const [_searchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const hasFiredEvent = useRef(false);
+
+  const { data: user } = useQuery({
+    queryKey: ['me'],
+    queryFn: getMe,
+  });
 
   useEffect(() => {
     queryClient.invalidateQueries({ queryKey: ['me'] });
   }, [queryClient]);
+
+  useEffect(() => {
+    if (user?.plan && !hasFiredEvent.current) {
+      hasFiredEvent.current = true;
+      trackPurchase(user.plan);
+    }
+  }, [user?.plan]);
 
   return (
     <div className="max-w-md mx-auto mt-12">

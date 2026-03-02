@@ -79,6 +79,7 @@ function loadMetaPixel(): void {
 
   /* eslint-disable */
   (function (f: Window, b: Document, e: string, v: string) {
+    // @ts-expect-error Meta Pixel snippet — fbq may not exist yet
     if (f.fbq) return;
     const n: any = (f.fbq = function () {
       n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);

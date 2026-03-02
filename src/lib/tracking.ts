@@ -14,6 +14,18 @@ declare global {
 
 let ga4Loaded = false;
 let metaPixelLoaded = false;
+let metaPixelReady = false;
+let ga4Ready = false;
+
+// Fila de eventos pendentes para disparar quando os scripts carregarem
+const pendingEvents: Array<() => void> = [];
+
+function flushPendingEvents(): void {
+  while (pendingEvents.length > 0) {
+    const event = pendingEvents.shift();
+    event?.();
+  }
+}
 
 function initGoogleConsentMode(): void {
   window.dataLayer = window.dataLayer || [];
@@ -51,6 +63,10 @@ function loadGA4(): void {
   const script = document.createElement('script');
   script.src = `https://www.googletagmanager.com/gtag/js?id=${GA4_ID}`;
   script.async = true;
+  script.onload = () => {
+    ga4Ready = true;
+    flushPendingEvents();
+  };
   document.head.appendChild(script);
 
   window.gtag('js', new Date());
@@ -75,6 +91,10 @@ function loadMetaPixel(): void {
     const t = b.createElement(e) as HTMLScriptElement;
     t.async = true;
     t.src = v;
+    t.onload = () => {
+      metaPixelReady = true;
+      flushPendingEvents();
+    };
     const s = b.getElementsByTagName(e)[0];
     s?.parentNode?.insertBefore(t, s);
   })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
@@ -118,6 +138,36 @@ export function updateConsentAndReload(): void {
   if (consent.marketing && !metaPixelLoaded) loadMetaPixel();
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────
+
+function sendGtagEvent(eventName: string, params: Record<string, unknown>): void {
+  if (!hasAnalyticsConsent()) return;
+
+  const fire = () => {
+    if (window.gtag) window.gtag('event', eventName, params);
+  };
+
+  if (ga4Ready) {
+    fire();
+  } else {
+    pendingEvents.push(fire);
+  }
+}
+
+function sendFbqEvent(eventName: string, params: Record<string, unknown>): void {
+  if (!hasMarketingConsent()) return;
+
+  const fire = () => {
+    if (window.fbq) window.fbq('track', eventName, params);
+  };
+
+  if (metaPixelReady) {
+    fire();
+  } else {
+    pendingEvents.push(fire);
+  }
+}
+
 // ─── Eventos ─────────────────────────────────────────────────────
 
 const PLAN_PRICES: Record<string, number> = {
@@ -127,69 +177,55 @@ const PLAN_PRICES: Record<string, number> = {
 };
 
 export function trackCompleteRegistration(): void {
-  if (hasAnalyticsConsent() && window.gtag) {
-    window.gtag('event', 'Complete_Registration', { method: 'email' });
-  }
-
-  if (hasMarketingConsent() && window.fbq) {
-    window.fbq('track', 'CompleteRegistration', {
-      content_name: 'HostWise Registration',
-      status: true,
-      currency: 'BRL',
-      value: 0,
-    });
-  }
+  sendGtagEvent('Complete_Registration', { method: 'email' });
+  sendFbqEvent('CompleteRegistration', {
+    content_name: 'HostWise Registration',
+    status: true,
+    currency: 'BRL',
+    value: 0,
+  });
 }
 
 export function trackStartTrial(): void {
-  if (hasAnalyticsConsent() && window.gtag) {
-    window.gtag('event', 'Start_Trial', {
-      currency: 'BRL',
-      value: 57,
-      plan: 'STARTER',
-      trial_days: 7,
-    });
-  }
-
-  if (hasMarketingConsent() && window.fbq) {
-    window.fbq('track', 'StartTrial', {
-      currency: 'BRL',
-      value: 57.0,
-      predicted_ltv: 57.0,
-      content_name: 'Starter Plan',
-      trial_period: 7,
-    });
-  }
+  sendGtagEvent('Start_Trial', {
+    currency: 'BRL',
+    value: 57,
+    plan: 'STARTER',
+    trial_days: 7,
+  });
+  sendFbqEvent('StartTrial', {
+    currency: 'BRL',
+    value: 57.0,
+    predicted_ltv: 57.0,
+    content_name: 'Starter Plan',
+    trial_period: 7,
+  });
 }
 
 export function trackPurchase(planName: string): void {
   const value = PLAN_PRICES[planName] || 0;
 
-  if (hasAnalyticsConsent() && window.gtag) {
-    window.gtag('event', 'purchase', {
-      currency: 'BRL',
-      value,
-      transaction_id: `hw_${Date.now()}`,
-      items: [
-        {
-          item_id: planName.toLowerCase(),
-          item_name: `HostWise ${planName}`,
-          price: value,
-          quantity: 1,
-          item_category: 'subscription',
-        },
-      ],
-    });
-  }
+  sendGtagEvent('purchase', {
+    currency: 'BRL',
+    value,
+    transaction_id: `hw_${Date.now()}`,
+    items: [
+      {
+        item_id: planName.toLowerCase(),
+        item_name: `HostWise ${planName}`,
+        price: value,
+        quantity: 1,
+        item_category: 'subscription',
+      },
+    ],
+  });
 
-  if (hasMarketingConsent() && window.fbq) {
-    window.fbq('track', 'Purchase', {
-      currency: 'BRL',
-      value,
-      content_name: `HostWise ${planName}`,
-      content_type: 'subscription',
-      content_ids: [planName.toLowerCase()],
-      num_items: 1,
-    });
-  }
+  sendFbqEvent('Purchase', {
+    currency: 'BRL',
+    value,
+    content_name: `HostWise ${planName}`,
+    content_type: 'subscription',
+    content_ids: [planName.toLowerCase()],
+    num_items: 1,
+  });
 }

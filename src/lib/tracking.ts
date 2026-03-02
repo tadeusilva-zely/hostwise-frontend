@@ -128,7 +128,7 @@ const PLAN_PRICES: Record<string, number> = {
 
 export function trackCompleteRegistration(): void {
   if (hasAnalyticsConsent() && window.gtag) {
-    window.gtag('event', 'sign_up', { method: 'email' });
+    window.gtag('event', 'Complete_Registration', { method: 'email' });
   }
 
   if (hasMarketingConsent() && window.fbq) {
@@ -143,7 +143,7 @@ export function trackCompleteRegistration(): void {
 
 export function trackStartTrial(): void {
   if (hasAnalyticsConsent() && window.gtag) {
-    window.gtag('event', 'start_trial', {
+    window.gtag('event', 'Start_Trial', {
       currency: 'BRL',
       value: 57,
       plan: 'STARTER',

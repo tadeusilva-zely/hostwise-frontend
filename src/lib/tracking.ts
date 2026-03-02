@@ -178,12 +178,16 @@ const PLAN_PRICES: Record<string, number> = {
 };
 
 export function trackCompleteRegistration(): void {
-  sendGtagEvent('Complete_Registration', { method: 'email' });
+  sendGtagEvent('Complete_Registration', {
+    method: 'email',
+    currency: 'BRL',
+    value: 50,
+  });
   sendFbqEvent('CompleteRegistration', {
     content_name: 'HostWise Registration',
     status: true,
     currency: 'BRL',
-    value: 0,
+    value: 50,
   });
 }
 

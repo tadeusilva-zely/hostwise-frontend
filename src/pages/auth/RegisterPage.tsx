@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { isValidCnpj } from '../../utils/cnpj';
 import { trackStartTrial, trackCompleteRegistration } from '../../lib/tracking';
+import { Turnstile } from '@marsidev/react-turnstile';
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -21,6 +22,8 @@ export function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
   const hasTrackedStartTrial = useRef(false);
 
   useEffect(() => {
@@ -74,6 +77,11 @@ export function RegisterPage() {
       return;
     }
 
+    if (siteKey && !turnstileToken) {
+      setError('Complete a verificação de segurança.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -84,6 +92,7 @@ export function RegisterPage() {
         password: form.password,
         cnpj: form.cnpj || undefined,
         phone: form.phone || undefined,
+        turnstileToken: turnstileToken || undefined,
       });
       trackCompleteRegistration();
       navigate('/dashboard');
@@ -240,9 +249,19 @@ export function RegisterPage() {
             />
           </div>
 
+          {siteKey && (
+            <Turnstile
+              siteKey={siteKey}
+              onSuccess={setTurnstileToken}
+              onError={() => setTurnstileToken('')}
+              onExpire={() => setTurnstileToken('')}
+              options={{ theme: 'auto', language: 'pt-BR' }}
+            />
+          )}
+
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || (!!siteKey && !turnstileToken)}
             className="w-full btn-primary py-3 flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isLoading ? (

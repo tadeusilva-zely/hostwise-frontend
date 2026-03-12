@@ -40,6 +40,7 @@ interface RegisterData {
   organizationName: string;
   cnpj?: string;
   phone?: string;
+  turnstileToken?: string;
 }
 
 interface AuthContextType {
